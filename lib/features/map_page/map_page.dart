@@ -481,14 +481,34 @@ class _MapPageState extends State<MapPage> {
           _clientPhone = payload['phoneno']?.toString() ?? '';
           _isLadyMode = payload['isladymode'] == true || payload['isladymode']?.toString() == 'true';
 
+          final note = payload['note']?.toString() ?? '';
+          
+          // ดึงข้อมูลรุ่นรถและทะเบียนจาก note หากมีรูปแบบ [รุ่นรถ: ... | ทะเบียน: ...]
+          String parsedCarInfo = "";
+          String customNote = note;
+          if (note.contains('[รุ่นรถ:') && note.contains(']')) {
+            final match = RegExp(r'\[รุ่นรถ:\s*(.*?)\s*\|\s*ทะเบียน:\s*(.*?)\]').firstMatch(note);
+            if (match != null) {
+              final carModel = match.group(1) ?? '';
+              final carPlate = match.group(2) ?? '';
+              parsedCarInfo = "$carModel ทะเบียน $carPlate".trim();
+              customNote = note.replaceAll(match.group(0)!, '').trim();
+            }
+          }
+
           final carType = payload['requiredcartype']?.toString() ?? '';
-          if (carType == '2') {
+          if (parsedCarInfo.isNotEmpty) {
+            _carDetails = parsedCarInfo;
+          } else if (carType == '2') {
             _carDetails = "SUV / รถขนาดใหญ่";
           } else {
             _carDetails = "Sedan / รถเก๋ง";
           }
+
           final phoneEmer = payload['phoneemer']?.toString() ?? '';
-          _carSubdetails = "เบอร์ติดต่อฉุกเฉิน: ${phoneEmer.isNotEmpty ? phoneEmer : 'ไม่มี'}";
+          _carSubdetails = customNote.isNotEmpty 
+              ? "หมายเหตุ: $customNote" 
+              : "เบอร์ติดต่อฉุกเฉิน: ${phoneEmer.isNotEmpty ? phoneEmer : 'ไม่มี'}";
 
           final fee = payload['requestfee'];
           if (fee != null) {
@@ -505,7 +525,13 @@ class _MapPageState extends State<MapPage> {
             _paymentMethod = "เงินสด (Cash)";
           }
 
-          _gearType = "Auto / Manual Gear";
+          if (note.toLowerCase().contains('auto')) {
+            _gearType = "Auto Gear";
+          } else if (note.toLowerCase().contains('manual') || note.toLowerCase().contains('ธรรมดา')) {
+            _gearType = "Manual Gear";
+          } else {
+            _gearType = "Auto / Manual Gear";
+          }
           
           final dist = payload['reqdistance'];
           if (dist != null) {
@@ -1479,17 +1505,18 @@ class _MapPageState extends State<MapPage> {
               left: 0,
               right: 0,
               child: Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFFB2B2B2), // พื้นหลังสีเทาเงินตามรูปตัวอย่าง
-                  borderRadius: BorderRadius.only(
+                decoration: BoxDecoration(
+                  color: _isLadyMode ? const Color(0xFFFFF0F5) : const Color(0xFFB2B2B2),
+                  borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(24),
                     topRight: Radius.circular(24),
                   ),
+                  border: _isLadyMode ? Border.all(color: const Color(0xFFFF69B4), width: 2) : null,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 10,
-                      spreadRadius: 2,
+                      color: _isLadyMode ? const Color(0xFFFF1493).withOpacity(0.3) : Colors.black26,
+                      blurRadius: 12,
+                      spreadRadius: 3,
                     )
                   ],
                 ),
@@ -1504,7 +1531,7 @@ class _MapPageState extends State<MapPage> {
                         width: 80,
                         height: 6,
                         decoration: BoxDecoration(
-                          color: const Color(0xCC000000),
+                          color: _isLadyMode ? const Color(0xFFFF1493) : const Color(0xCC000000),
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
@@ -1515,8 +1542,8 @@ class _MapPageState extends State<MapPage> {
                       _currentJobStatus == 'going to pickup'
                           ? "กำลังไปรับลูกค้า"
                           : (_currentJobStatus == 'arrived' ? "ถึงจุดนัดหมายแล้ว (รอลูกค้า)" : "กำลังเดินทางไปส่งลูกค้า"),
-                      style: const TextStyle(
-                        color: Color(0xDD000000),
+                      style: TextStyle(
+                        color: _isLadyMode ? const Color(0xFFC71585) : const Color(0xDD000000),
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                       ),
@@ -1524,21 +1551,29 @@ class _MapPageState extends State<MapPage> {
                     if (_isLadyMode) ...[
                       const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFE4E1),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFFFB6C1)),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF69B4), Color(0xFFFF1493)],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x40FF1493),
+                              blurRadius: 6,
+                              offset: Offset(0, 2),
+                            )
+                          ],
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.female, color: Color(0xFFFF1493), size: 18),
+                            Icon(Icons.female, color: Colors.white, size: 18),
                             SizedBox(width: 6),
                             Text(
-                              "Lady Mode เท่านั้น",
+                              "🌸 Lady Mode (สำหรับผู้หญิงเท่านั้น)",
                               style: TextStyle(
-                                color: Color(0xFFFF1493),
+                                color: Colors.white,
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -1766,17 +1801,18 @@ class _MapPageState extends State<MapPage> {
               left: 0,
               right: 0,
               child: Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFFB2B2B2), // พื้นหลังสีเทาเงินตามรูปตัวอย่าง
-                  borderRadius: BorderRadius.only(
+                decoration: BoxDecoration(
+                  color: _isLadyMode ? const Color(0xFFFFF0F5) : const Color(0xFFB2B2B2),
+                  borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(24),
                     topRight: Radius.circular(24),
                   ),
+                  border: _isLadyMode ? Border.all(color: const Color(0xFFFF69B4), width: 2) : null,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 10,
-                      spreadRadius: 2,
+                      color: _isLadyMode ? const Color(0xFFFF1493).withOpacity(0.35) : Colors.black26,
+                      blurRadius: 12,
+                      spreadRadius: 3,
                     )
                   ],
                 ),
@@ -1789,7 +1825,7 @@ class _MapPageState extends State<MapPage> {
                       width: 80,
                       height: 6,
                       decoration: BoxDecoration(
-                        color: const Color(0xCC000000),
+                        color: _isLadyMode ? const Color(0xFFFF1493) : const Color(0xCC000000),
                         borderRadius: BorderRadius.circular(3),
                       ),
                     ),
@@ -1797,25 +1833,29 @@ class _MapPageState extends State<MapPage> {
                     
                     // หัวข้อ
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "มีงานใหม่เข้ามา!",
-                          style: TextStyle(
-                            color: Color(0xDD000000),
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Text(
+                            _isLadyMode ? "🌸 มีงานใหม่ (Lady Mode)!" : "มีงานใหม่เข้ามา!",
+                            style: TextStyle(
+                              color: _isLadyMode ? const Color(0xFFC71585) : const Color(0xDD000000),
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 6),
                         Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.gesture, color: Color(0xDD000000), size: 24),
-                            const SizedBox(width: 8),
+                            Icon(Icons.gesture, color: _isLadyMode ? const Color(0xFFC71585) : const Color(0xDD000000), size: 18),
+                            const SizedBox(width: 4),
                             Text(
                               _jobDistance ?? "0.0 km",
-                              style: const TextStyle(
-                                color: Color(0xDD000000),
-                                fontSize: 20,
+                              style: TextStyle(
+                                color: _isLadyMode ? const Color(0xFFC71585) : const Color(0xDD000000),
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -1828,21 +1868,29 @@ class _MapPageState extends State<MapPage> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFE4E1),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFFFB6C1)),
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFF69B4), Color(0xFFFF1493)],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x40FF1493),
+                                blurRadius: 6,
+                                offset: Offset(0, 2),
+                              )
+                            ],
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.female, color: Color(0xFFFF1493), size: 18),
+                              Icon(Icons.female, color: Colors.white, size: 18),
                               SizedBox(width: 6),
                               Text(
-                                "Lady Mode เท่านั้น",
+                                "🌸 Lady Mode (สำหรับผู้หญิงเท่านั้น)",
                                 style: TextStyle(
-                                  color: Color(0xFFFF1493),
+                                  color: Colors.white,
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
                                 ),
