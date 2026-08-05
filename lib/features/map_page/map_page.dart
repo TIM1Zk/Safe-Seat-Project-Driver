@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:realtime_client/src/types.dart';
@@ -47,6 +48,7 @@ class _MapPageState extends State<MapPage> {
   String? _gearType;
   String? _jobDistance;
   dynamic _activeRequestId;
+  bool _isLadyMode = false;
 
   // Active job states
   bool _hasActiveJob = false;
@@ -261,6 +263,8 @@ class _MapPageState extends State<MapPage> {
           });
         }
       }
+    }, onError: (error) {
+      debugPrint("[SafeSeat debug] Realtime stream error on buddyteam: $error");
     });
   }
 
@@ -380,18 +384,21 @@ class _MapPageState extends State<MapPage> {
         try {
           Position? position;
           try {
-            position = await Geolocator.getCurrentPosition(
-              locationSettings: const LocationSettings(
-                accuracy: LocationAccuracy.low,
-                timeLimit: Duration(seconds: 5),
-              ),
-            );
-          } catch (e) {
-            debugPrint("Failed to get current position in timer: $e");
-          }
+            position = await Geolocator.getLastKnownPosition();
+          } catch (_) {}
 
-          // Fallback to last known position if current position fetch fails
-          position ??= await Geolocator.getLastKnownPosition();
+          if (position == null) {
+            try {
+              position = await Geolocator.getCurrentPosition(
+                locationSettings: const LocationSettings(
+                  accuracy: LocationAccuracy.low,
+                  timeLimit: Duration(seconds: 5),
+                ),
+              );
+            } catch (_) {
+              position = _currentPosition;
+            }
+          }
 
           if (position != null) {
             if (mounted) {
@@ -429,15 +436,21 @@ class _MapPageState extends State<MapPage> {
     // พยายามดึงพิกัดใหม่ถ้ายังไม่มี
     if (_currentPosition == null) {
       try {
-        _currentPosition = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.low,
-            timeLimit: Duration(seconds: 5),
-          ),
-        );
-      } catch (e) {
-        debugPrint("Failed to fetch GPS during force update: $e");
-        return;
+        _currentPosition = await Geolocator.getLastKnownPosition();
+      } catch (_) {}
+
+      if (_currentPosition == null) {
+        try {
+          _currentPosition = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.low,
+              timeLimit: Duration(seconds: 5),
+            ),
+          );
+        } catch (e) {
+          debugPrint("Failed to fetch GPS during force update: $e");
+          return;
+        }
       }
     }
 
@@ -466,6 +479,7 @@ class _MapPageState extends State<MapPage> {
           _clientName = payload['custname']?.toString() ?? 'ลูกค้าทั่วไป';
           _clientProfileImage = null;
           _clientPhone = payload['phoneno']?.toString() ?? '';
+          _isLadyMode = payload['isladymode'] == true || payload['isladymode']?.toString() == 'true';
 
           final carType = payload['requiredcartype']?.toString() ?? '';
           if (carType == '2') {
@@ -536,6 +550,7 @@ class _MapPageState extends State<MapPage> {
         _clientName = userData?['name']?.toString() ?? 'ลูกค้าทั่วไป';
         _clientProfileImage = userData?['profileimagepath']?.toString();
         _clientPhone = userData?['phoneno']?.toString() ?? userId;
+        _isLadyMode = payload['isladymode'] == true || payload['isladymode']?.toString() == 'true';
 
         if (carData != null) {
           final brand = carData['carbrand']?.toString() ?? '';
@@ -652,6 +667,41 @@ class _MapPageState extends State<MapPage> {
       );
     }
   }
+
+  void _triggerLadyModeTestJob() {
+    final payloadData = {
+      'requestid': 999,
+      'custname': 'คุณอารียา (ทดสอบ Lady Mode)',
+      'phoneno': '081-234-5678',
+      'isladymode': true,
+      'isPubJob': true,
+      'requiredcartype': '1',
+      'requestfee': '350',
+      'paymentmethod': 'เงินสด',
+      'reqdistance': '4.5',
+      'pickupname': 'สยามพารากอน (Siam Paragon)',
+      'dropoffname': 'คอนโดมิเนียม สุขุมวิท 24',
+    };
+
+    // ส่งสัญญาณ Broadcast ผ่าน Supabase Realtime ให้เด้งพร้อมกันทั้งทีม (ทุกเครื่องที่อยู่ในทีมเดียวกัน)
+    _teamChannel?.send(
+      type: RealtimeListenTypes.broadcast,
+      event: 'new_job_dispatched',
+      payload: payloadData,
+    );
+
+    // แสดงป๊อบอัพรับงานบนเครื่องปัจจุบัน
+    _showNewJobOfferDialog(payloadData);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("ส่งสัญญาณทดสอบรับงาน Lady Mode ไปยังทุกคนในทีมเรียบร้อยแล้ว"),
+        backgroundColor: Color(0xFFFF1493),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
 
   Future<List<LatLng>> _getOSRMRoute(LatLng start, LatLng end) async {
     try {
@@ -792,6 +842,30 @@ class _MapPageState extends State<MapPage> {
           _dropoffLng = 99.0134;
           _updateJobMarkers();
         });
+
+        // บรอดแคสต์บอกเครื่องบัดดี้ในทีมว่ากดรับงานแล้ว ให้เข้าสู่โหมดนำทางพร้อมกัน
+        _teamChannel?.send(
+          type: RealtimeListenTypes.broadcast,
+          event: 'job_accepted',
+          payload: {
+            'requestid': requestId,
+            'job': {
+              'custname': _clientName ?? 'คุณอารียา (ทดสอบ Lady Mode)',
+              'phoneno': _clientPhone ?? '081-234-5678',
+              'isladymode': true,
+              'isPubJob': true,
+              'requestfee': '350',
+              'paymentmethod': 'เงินสด',
+              'reqdistance': '4.5',
+              'pickuplatitude': 18.8972,
+              'pickuplongitude': 99.0112,
+              'dropofflatitude': 18.8852,
+              'dropofflongitude': 99.0134,
+            },
+            'isPubJob': true,
+          },
+        );
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('รับงานจำลองสำเร็จ!')),
         );
@@ -899,13 +973,32 @@ class _MapPageState extends State<MapPage> {
         // ดึงตำแหน่งประวัติล่าสุดแบบรวดเร็ว
         Position? position = await Geolocator.getLastKnownPosition();
         
-        // ดึงตำแหน่งสดด้วยความแม่นยำต่ำเพื่อความชัวร์และเร็วสูงสุดบน Emulator
-        position ??= await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.low,
-            timeLimit: Duration(seconds: 4),
-          ),
-        );
+        // ดึงตำแหน่งสดด้วยความแม่นยำต่ำเพื่อความชัวร์และเร็วสูงสุดบน Emulator (พร้อม Fallback กรณี Timeout)
+        if (position == null) {
+          try {
+            position = await Geolocator.getCurrentPosition(
+              locationSettings: const LocationSettings(
+                accuracy: LocationAccuracy.low,
+                timeLimit: Duration(seconds: 4),
+              ),
+            );
+          } catch (e) {
+            debugPrint("[SafeSeat Mapbox] Timeout/Error fetching live position, fallback to default: $e");
+            // Fallback location (Bangkok default coordinates) so app won't hang
+            position = Position(
+              longitude: 100.5018,
+              latitude: 13.7563,
+              timestamp: DateTime.now(),
+              accuracy: 100,
+              altitude: 0,
+              heading: 0,
+              speed: 0,
+              speedAccuracy: 0,
+              altitudeAccuracy: 0,
+              headingAccuracy: 0,
+            );
+          }
+        }
 
         String address = "พิกัด: " + position.latitude.toStringAsFixed(5) + ", " + position.longitude.toStringAsFixed(5);
 
@@ -1169,6 +1262,65 @@ class _MapPageState extends State<MapPage> {
             ],
           ),
 
+          // ป้ายบอกสถานะบทบาทในทีม (Leader / Follower)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 16,
+            left: 20,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.85),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _isLoadingLeaderStatus 
+                      ? Colors.grey 
+                      : (_buddyTeamId == null
+                          ? Colors.grey
+                          : (_isLeader ? const Color(0xFF7CE5FF) : const Color(0xFFFFB300))),
+                  width: 1.5,
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black45,
+                    blurRadius: 8,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _isLoadingLeaderStatus
+                        ? Icons.hourglass_empty
+                        : (_buddyTeamId == null
+                            ? Icons.link_off
+                            : (_isLeader ? Icons.stars : Icons.supervised_user_circle)),
+                    color: _isLoadingLeaderStatus 
+                        ? Colors.grey 
+                        : (_buddyTeamId == null
+                            ? Colors.grey
+                            : (_isLeader ? const Color(0xFF7CE5FF) : const Color(0xFFFFB300))),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _isLoadingLeaderStatus
+                        ? "กำลังตรวจสอบบทบาท..."
+                        : (_buddyTeamId == null
+                            ? "ยังไม่ได้จับคู่"
+                            : (_isLeader ? "Leader (หัวหน้าทีม)" : "Follower (บัดดี้)")),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
 
 
           // 2. ป้ายแสดงรายละเอียด Marker เมื่อถูกสัมผัสแตะ
@@ -1277,6 +1429,7 @@ class _MapPageState extends State<MapPage> {
             ),
           ),
 
+
           // ปุ่มศูนย์ความปลอดภัย (แสดงเมื่อมีงานเสนอเข้ามา หรือมีงานปัจจุบัน)
           if (_isJobOfferOpen || _hasActiveJob)
             Positioned(
@@ -1368,6 +1521,32 @@ class _MapPageState extends State<MapPage> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    if (_isLadyMode) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFE4E1),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFFFB6C1)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.female, color: Color(0xFFFF1493), size: 18),
+                            SizedBox(width: 6),
+                            Text(
+                              "Lady Mode เท่านั้น",
+                              style: TextStyle(
+                                color: Color(0xFFFF1493),
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 15),
 
                     // ข้อมูลลูกค้า
@@ -1644,6 +1823,35 @@ class _MapPageState extends State<MapPage> {
                         ),
                       ],
                     ),
+                    if (_isLadyMode) ...[
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFE4E1),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFFFB6C1)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.female, color: Color(0xFFFF1493), size: 18),
+                              SizedBox(width: 6),
+                              Text(
+                                "Lady Mode เท่านั้น",
+                                style: TextStyle(
+                                  color: Color(0xFFFF1493),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 15),
 
                     // ข้อมูลลูกค้า
