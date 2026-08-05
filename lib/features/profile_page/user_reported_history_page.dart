@@ -50,16 +50,29 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
   }
 
   List<dynamic> _getFilteredReports() {
+    final now = DateTime.now();
+    final oneMonthAgo = DateTime(now.year, now.month - 1, now.day);
+
+    final recentReports = _reports.where((r) {
+      if (r['reportdate'] == null) return true;
+      try {
+        final parsedDate = DateTime.parse(r['reportdate'].toString()).toLocal();
+        return parsedDate.isAfter(oneMonthAgo) || parsedDate.isAtSameMomentAs(oneMonthAgo);
+      } catch (e) {
+        return true;
+      }
+    }).toList();
+
     if (_selectedFilter == 'ทั้งหมด') {
-      return _reports;
+      return recentReports;
     } else if (_selectedFilter == 'กำลังตรวจสอบ') {
-      return _reports.where((r) {
+      return recentReports.where((r) {
         final status = (r['reportstatus'] ?? '').toString();
         return status == 'กำลังดำเนินการ' || status == 'รอดำเนินการ' || status == 'Pending';
       }).toList();
     } else {
       // ตรวจสอบแล้ว / เสร็จสิ้น
-      return _reports.where((r) {
+      return recentReports.where((r) {
         final status = (r['reportstatus'] ?? '').toString();
         return status != 'กำลังดำเนินการ' && status != 'รอดำเนินการ' && status != 'Pending';
       }).toList();

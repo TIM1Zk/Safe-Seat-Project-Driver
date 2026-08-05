@@ -51,21 +51,34 @@ class _ListDriverReportPageState extends State<ListDriverReportPage> {
     }
   }
 
-  // Filter reports based on the selected tab
+  // Filter reports based on the selected tab and 1-month date restriction
   List<dynamic> _getFilteredReports() {
+    final now = DateTime.now();
+    final oneMonthAgo = DateTime(now.year, now.month - 1, now.day);
+
+    final recentReports = _reports.where((r) {
+      if (r['reportdate'] == null) return true;
+      try {
+        final parsedDate = DateTime.parse(r['reportdate'].toString()).toLocal();
+        return parsedDate.isAfter(oneMonthAgo) || parsedDate.isAtSameMomentAs(oneMonthAgo);
+      } catch (e) {
+        return true;
+      }
+    }).toList();
+
     if (_selectedTab == 'ทั้งหมด') {
-      return _reports;
+      return recentReports;
     } else if (_selectedTab == 'กำลังดำเนินการ') {
-      return _reports
+      return recentReports
           .where((r) => r['reportstatus'] == 'กำลังดำเนินการ')
           .toList();
     } else if (_selectedTab == 'เสร็จสิ้น') {
       // Treat anything else as finished/resolved
-      return _reports
+      return recentReports
           .where((r) => r['reportstatus'] != 'กำลังดำเนินการ')
           .toList();
     }
-    return _reports;
+    return recentReports;
   }
 
   @override
