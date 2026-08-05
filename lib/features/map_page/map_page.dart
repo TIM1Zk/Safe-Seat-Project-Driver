@@ -187,6 +187,17 @@ class _MapPageState extends State<MapPage> {
         }
       },
     ).onBroadcast(
+      event: 'job_denied',
+      callback: (payload) {
+        debugPrint("[SafeSeat debug] Received broadcast job_denied with payload: $payload");
+        if (mounted) {
+          _closeJobOfferDialog();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('มีการปฏิเสธข้อเสนองานแล้ว')),
+          );
+        }
+      },
+    ).onBroadcast(
       event: 'job_status_updated',
       callback: (payload) {
         debugPrint("[SafeSeat debug] Received broadcast job_status_updated with payload: $payload");
@@ -2087,9 +2098,14 @@ class _MapPageState extends State<MapPage> {
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () {
-                              setState(() {
-                                _isJobOfferOpen = false;
-                              });
+                              _teamChannel?.send(
+                                type: RealtimeListenTypes.broadcast,
+                                event: 'job_denied',
+                                payload: {
+                                  'requestid': _activeRequestId,
+                                },
+                              );
+                              _closeJobOfferDialog();
                             },
                             icon: const Icon(Icons.pan_tool, color: Colors.white),
                             label: const Text(
