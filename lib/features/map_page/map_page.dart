@@ -16,6 +16,7 @@ import 'package:mobile_project/features/searchbuddy_page/searchbuddy_page.dart';
 import 'package:mobile_project/features/map_page/finish_job_page.dart';
 import 'package:mobile_project/features/map_page/report_user_page.dart';
 import 'package:mobile_project/features/service_summary/service_summary_page.dart';
+import 'package:mobile_project/core/utils/location_helper.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});

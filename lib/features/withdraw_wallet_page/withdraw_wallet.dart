@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_project/core/network/api_service.dart';
 
 class WithdrawWalletPage extends StatefulWidget {
@@ -21,6 +22,12 @@ class _WithdrawWalletPageState extends State<WithdrawWalletPage> {
   void initState() {
     super.initState();
     _fetchBalance();
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchBalance() async {
@@ -48,9 +55,9 @@ class _WithdrawWalletPageState extends State<WithdrawWalletPage> {
     }
 
     if (amount > _currentBalance) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('ยอดเงินคงเหลือไม่เพียงพอ')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ยอดเงินคงเหลือไม่เพียงพอ')),
+      );
       return;
     }
 
@@ -67,7 +74,7 @@ class _WithdrawWalletPageState extends State<WithdrawWalletPage> {
               backgroundColor: Colors.green,
             ),
           );
-          Navigator.pop(context, true); // Return true to indicate success
+          Navigator.pop(context, true);
         }
       }
     } catch (e) {
@@ -86,146 +93,225 @@ class _WithdrawWalletPageState extends State<WithdrawWalletPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("ถอนเงิน"),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
-              decoration: const BoxDecoration(
-                color: Color(0xFF7CE5FF),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                // Top bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 22),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      const Text(
+                        "ถอนเงิน (Withdraw)",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    "ยอดเงินที่ถอนได้",
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
+
+                // Balance Banner
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1E1E1E), Color(0xFF3A3A3A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.12),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "${_currentBalance.toStringAsFixed(2)} บาท",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "ยอดเงินที่ถอนได้สุทธิ",
+                        style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "฿${_currentBalance.toStringAsFixed(2)}",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(25.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "จำนวนเงินที่ต้องการถอน",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _amountController,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: "0.00",
-                        prefixIcon: const Icon(Icons.attach_money, color: Color(0xFF7CE5FF)),
-                        suffixText: "บาท",
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(15),
+                ),
+
+                // Form Section
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "จำนวนเงินที่ต้องการถอน",
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
                         ),
-                        filled: true,
-                        fillColor: const Color(0xFF1E1E1E),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty)
-                          return "กรุณาระบุจำนวนเงิน";
-                        final val = double.tryParse(value);
-                        if (val == null || val <= 0)
-                          return "จำนวนเงินไม่ถูกต้อง";
-                        if (val > _currentBalance) return "ยอดเงินไม่เพียงพอ";
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 30),
-                    const Text(
-                      "ช่องทางการรับเงิน",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      value: _selectedMethod,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(15),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _amountController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: "0.00",
+                            hintStyle: TextStyle(color: Colors.grey.shade400),
+                            prefixText: "฿ ",
+                            prefixStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+                            suffixText: "บาท",
+                            suffixStyle: const TextStyle(fontSize: 14, color: Colors.black54),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(color: Colors.black12),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(color: Colors.black12),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(color: Colors.black, width: 1.5),
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFFF5F5F7),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return "กรุณาระบุจำนวนเงิน";
+                            }
+                            final val = double.tryParse(value);
+                            if (val == null || val <= 0) {
+                              return "จำนวนเงินไม่ถูกต้อง";
+                            }
+                            if (val > _currentBalance) {
+                              return "ยอดเงินไม่เพียงพอ";
+                            }
+                            return null;
+                          },
                         ),
-                        filled: true,
-                        fillColor: const Color(0xFF1E1E1E),
-                      ),
-                      items:
-                          [
+                        const SizedBox(height: 24),
+                        const Text(
+                          "ช่องทางการรับเงิน",
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: _selectedMethod,
+                          dropdownColor: Colors.white,
+                          style: const TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w500),
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(color: Colors.black12),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(color: Colors.black12),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(color: Colors.black, width: 1.5),
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFFF5F5F7),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          ),
+                          items: [
                             'ธนาคาร (Bank Transfer)',
                             'PromptPay (พร้อมเพย์)',
                             'TrueMoney Wallet',
                           ].map((String method) {
                             return DropdownMenuItem<String>(
                               value: method,
-                              child: Text(method),
+                              child: Text(method, style: const TextStyle(color: Colors.black)),
                             );
                           }).toList(),
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _selectedMethod = newValue!;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 50),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 55,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _handleWithdraw,
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2.5,
-                                ),
-                              )
-                            : const Text(
-                                "ยืนยันการถอนเงิน",
+                          onChanged: (String? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                _selectedMethod = newValue;
+                              });
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 36),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _handleWithdraw,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
                               ),
-                      ),
+                              elevation: 0,
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2.5,
+                                    ),
+                                  )
+                                : const Text(
+                                    "ยืนยันการถอนเงิน",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
