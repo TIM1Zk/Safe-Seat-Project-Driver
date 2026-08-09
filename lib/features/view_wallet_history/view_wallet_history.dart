@@ -97,30 +97,40 @@ class _WalletHistoryPageState extends State<WalletHistoryPage> {
                       // 2. TOTAL Withdraw Card
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE5E5E7),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF1E1E1E), Color(0xFF3A3A3A)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.black12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              "ยอดการถอนเงินทั้งหมด",
+                              "ยอดการถอนเงินสะสมทั้งหมด",
                               style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black54,
-                                letterSpacing: 1.0,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white70,
                               ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               "฿${totalWithdraw.toStringAsFixed(2)}",
                               style: const TextStyle(
-                                fontSize: 40,
+                                fontSize: 36,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black,
+                                color: Colors.white,
                               ),
                             ),
                           ],

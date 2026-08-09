@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:mobile_project/core/utils/image_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:mobile_project/core/network/api_service.dart';
 import '../Mybuddy_page/my_buddy_page.dart';
@@ -15,14 +16,14 @@ class SearchbuddyPage extends StatefulWidget {
 
 class _SearchbuddyPageState extends State<SearchbuddyPage> {
   final TextEditingController _searchController = TextEditingController();
-  String _selectedCategory = 'All';
+  String _selectedCategory = 'ทั้งหมด';
   List<dynamic> _buddies = [];
   List<dynamic> _pendingRequests = []; 
   bool _isLoading = false;
   Timer? _debounce;
   Timer? _refreshTimer;
 
-  final List<String> _categories = ['All', 'Nearby'];
+  final List<String> _categories = ['ทั้งหมด', 'ใกล้ฉัน'];
 
   @override
   void initState() {
@@ -63,11 +64,13 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
         _fetchBuddies();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Accepted buddy request!')),
+            const SnackBar(content: Text('ยอมรับคำขอเป็นบัดดี้สำเร็จ!'), backgroundColor: Colors.green),
           );
-          // ปิด Modal และพาไปหน้า MyBuddyPage อัตโนมัติ
           Navigator.pop(context);
-          Navigator.push(context, MaterialPageRoute(builder: (context) => MyBuddyPage(currentUsername: widget.currentUsername))).then((_) => _fetchPendingRequests());
+          Navigator.push(
+            context, 
+            MaterialPageRoute(builder: (context) => MyBuddyPage(currentUsername: widget.currentUsername))
+          ).then((_) => _fetchPendingRequests());
         }
         return true;
       }
@@ -84,7 +87,7 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
         await _fetchPendingRequests();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Rejected buddy request')),
+            const SnackBar(content: Text('ปฏิเสธคำขอเป็นบัดดี้แล้ว')),
           );
         }
         return true;
@@ -116,59 +119,52 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
       isScrollControlled: true,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Container(
-          height: MediaQuery.of(context).size.height * 0.7,
-          decoration: BoxDecoration(
+          height: MediaQuery.of(context).size.height * 0.65,
+          decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-            border: Border.all(color: Colors.black12, width: 1),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
             children: [
               const SizedBox(height: 12),
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
-              const SizedBox(height: 20),
-              Text("Buddy Requests", style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 22, letterSpacing: -0.5)),
-              const SizedBox(height: 6),
-              const Text("Requests expire after 5 minutes", style: TextStyle(color: Colors.white54, fontSize: 12)),
-              const SizedBox(height: 20),
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 16),
+              const Text("คำขอจับคู่บัดดี้ (Buddy Requests)", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 18)),
+              const SizedBox(height: 4),
+              const Text("คำขอจะหมดอายุภายใน 5 นาที", style: TextStyle(color: Colors.black45, fontSize: 12)),
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
               Expanded(
                 child: _pendingRequests.isEmpty
-                    ? const Center(child: Text("No pending requests", style: TextStyle(color: Colors.black)))
+                    ? const Center(child: Text("ไม่มีคำขอจับคู่ในขณะนี้", style: TextStyle(color: Colors.black54, fontSize: 15)))
                     : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                         itemCount: _pendingRequests.length,
                         itemBuilder: (context, index) {
                           final req = _pendingRequests[index];
                           final sender = req['sender'] ?? {};
                           final name = sender['firstname'] != null 
                               ? "${sender['firstname']} ${sender['lastname'] ?? ''}" 
-                              : sender['username'] ?? 'Unknown';
+                              : sender['username'] ?? 'ไม่ระบุชื่อ';
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF8F9FA),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: Colors.black.withOpacity(0.06),
-                              ),
+                              color: const Color(0xFFF5F5F7),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.black12),
                             ),
                             child: Row(
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.4), width: 1),
-                                  ),
-                                  child: CircleAvatar(
-                                    radius: 26,
-                                    backgroundImage: NetworkImage(ImageUtils.getProfileImageUrl(sender['regisimagepath'])),
-                                    onBackgroundImageError: (_, __) {},
-                                  ),
+                                CircleAvatar(
+                                  radius: 24,
+                                  backgroundColor: Colors.grey.shade300,
+                                  backgroundImage: NetworkImage(ImageUtils.getProfileImageUrl(sender['regisimagepath'])),
+                                  onBackgroundImageError: (_, __) {},
                                 ),
-                                const SizedBox(width: 14),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,15 +173,15 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
                                         name,
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: Colors.white,
+                                          fontSize: 15,
+                                          color: Colors.black87,
                                         ),
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 2),
                                       Text(
                                         "@${sender['username'] ?? 'unknown'}",
                                         style: const TextStyle(
-                                          color: Colors.white54,
+                                          color: Colors.black45,
                                           fontSize: 12,
                                         ),
                                       ),
@@ -202,17 +198,17 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
                                       child: Container(
                                         padding: const EdgeInsets.all(10),
                                         decoration: const BoxDecoration(
-                                          color: Colors.green,
+                                          color: Color(0xFF2E7D32),
                                           shape: BoxShape.circle,
                                         ),
                                         child: const Icon(
                                           Icons.check,
                                           color: Colors.white,
-                                          size: 18,
+                                          size: 16,
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(width: 12),
+                                    const SizedBox(width: 10),
                                     GestureDetector(
                                       onTap: () async {
                                         await _rejectRequest(req['buddyteamid']);
@@ -222,13 +218,13 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
                                       child: Container(
                                         padding: const EdgeInsets.all(10),
                                         decoration: const BoxDecoration(
-                                          color: Colors.red,
+                                          color: Colors.redAccent,
                                           shape: BoxShape.circle,
                                         ),
                                         child: const Icon(
                                           Icons.close,
                                           color: Colors.white,
-                                          size: 18,
+                                          size: 16,
                                         ),
                                       ),
                                     ),
@@ -250,16 +246,17 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
   Future<void> _fetchBuddies({String query = ''}) async {
     setState(() => _isLoading = true);
     try {
+      final categoryApi = _selectedCategory == 'ใกล้ฉัน' ? 'nearby' : 'all';
       Map<String, dynamic> params = {
         if (query.isNotEmpty) 'search': query,
-        if (_selectedCategory != 'All') 'category': _selectedCategory.toLowerCase(),
+        if (categoryApi != 'all') 'category': categoryApi,
         'exclude': widget.currentUsername,
       };
       final position = await _determinePosition();
       if (position != null) {
         params['lat'] = position.latitude.toString();
         params['lng'] = position.longitude.toString();
-        if (_selectedCategory == 'Nearby') {
+        if (_selectedCategory == 'ใกล้ฉัน') {
           params['radius'] = '2';
         }
       }
@@ -270,7 +267,7 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
     } catch (e) {
       debugPrint("Error fetching buddies: $e");
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -281,169 +278,172 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      body: Stack(
-        children: [
-          Positioned(
-            top: 0, left: 0, right: 0, height: 250,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                  colors: [colorScheme.primary.withOpacity(0.08), Colors.transparent],
-                ),
-              ),
-            ),
-          ),
-          SafeArea(
-            child: CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("Find Your Buddy", style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold, color: const Color(0xFF1E1E1E), letterSpacing: -0.5)),
-                                const SizedBox(height: 4),
-                                Text("Connect with people nearby", style: theme.textTheme.bodyMedium?.copyWith(color: Colors.black54)),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                _buildIconBtn(Icons.group, () {
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => MyBuddyPage(currentUsername: widget.currentUsername))).then((_) => _fetchPendingRequests());
-                                }, colorScheme),
-                                const SizedBox(width: 12),
-                                _buildNotificationBtn(colorScheme),
-                              ],
-                            ),
-                          ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. Header Bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                child: Row(
+                  children: [
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      alignment: Alignment.centerLeft,
+                      icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 22),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 4),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          "ค้นหาบัดดี้ (Find Buddy)",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
                         ),
-                        const SizedBox(height: 24),
-                        _buildSearchBar(colorScheme),
+                        SizedBox(height: 2),
+                        Text(
+                          "จับคู่คนขับใกล้คุณเพื่อเริ่มรับงาน",
+                          style: TextStyle(fontSize: 12, color: Colors.black54),
+                        ),
                       ],
                     ),
-                  ),
+                    const Spacer(),
+                    _buildIconBtn(Icons.people_outline, () {
+                      Navigator.push(
+                        context, 
+                        MaterialPageRoute(builder: (context) => MyBuddyPage(currentUsername: widget.currentUsername))
+                      ).then((_) => _fetchPendingRequests());
+                    }),
+                    const SizedBox(width: 10),
+                    _buildNotificationBtn(),
+                  ],
                 ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: _categories.map((category) {
-                          final isSelected = _selectedCategory == category;
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: ChoiceChip(
-                              label: Text(category),
-                              selected: isSelected,
-                              onSelected: (selected) {
-                                setState(() => _selectedCategory = category);
-                                _fetchBuddies(query: _searchController.text);
-                              },
-                              selectedColor: colorScheme.primary,
-                              labelStyle: TextStyle(
-                                color: isSelected ? Colors.black : Colors.white70,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              ),
-                              backgroundColor: const Color(0xFFF1F3F5),
-                              side: BorderSide(
-                                color: isSelected ? colorScheme.primary : Colors.black.withOpacity(0.04),
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              showCheckmark: false,
+              ),
+
+              // 2. Search Box
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _buildSearchBar(),
+              ),
+
+              const SizedBox(height: 14),
+
+              // 3. Category Filter Chips
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: _categories.map((category) {
+                    final isSelected = _selectedCategory == category;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() => _selectedCategory = category);
+                          _fetchBuddies(query: _searchController.text);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.black : const Color(0xFFF5F5F7),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected ? Colors.black : Colors.black12,
                             ),
-                          );
-                        }).toList(),
+                          ),
+                          child: Text(
+                            category,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : Colors.black87,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  }).toList(),
                 ),
-                if (_isLoading)
-                  const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
-                else if (_buddies.isEmpty)
-                  SliverFillRemaining(child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.person_search_rounded, size: 80, color: Colors.white24), const SizedBox(height: 16), Text("No buddies found", style: theme.textTheme.titleMedium?.copyWith(color: Colors.white54))])) )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate((context, index) => _buildBuddyCard(_buddies[index], colorScheme), childCount: _buddies.length),
-                    ),
-                  ),
-                const SliverToBoxAdapter(child: SizedBox(height: 20)),
-              ],
-            ),
+              ),
+
+              const SizedBox(height: 16),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Divider(height: 1),
+              ),
+
+              // 4. Buddies List
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator(color: Colors.black))
+                    : _buddies.isEmpty
+                        ? _buildEmptyState()
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            itemCount: _buddies.length,
+                            itemBuilder: (context, index) {
+                              return _buildBuddyCard(_buddies[index]);
+                            },
+                          ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildIconBtn(IconData icon, VoidCallback onTap, ColorScheme colorScheme) {
+  Widget _buildIconBtn(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(9),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFFF5F5F7),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.black.withOpacity(0.08)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            )
-          ],
+          border: Border.all(color: Colors.black12),
         ),
-        child: Icon(icon, color: const Color(0xFF1E1E1E)),
+        child: Icon(icon, color: Colors.black, size: 20),
       ),
     );
   }
 
-  Widget _buildNotificationBtn(ColorScheme colorScheme) {
+  Widget _buildNotificationBtn() {
     return GestureDetector(
       onTap: _showRequestsSheet,
       child: Stack(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: const Color(0xFFF5F5F7),
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.black.withOpacity(0.08)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                )
-              ],
+              border: Border.all(color: Colors.black12),
             ),
-            child: const Icon(Icons.notifications_none, color: Color(0xFF1E1E1E)),
+            child: const Icon(Icons.notifications_none, color: Colors.black, size: 20),
           ),
           if (_pendingRequests.isNotEmpty)
             Positioned(
-              right: 0, top: 0,
+              right: 0, 
+              top: 0,
               child: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                 constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                child: Text('${_pendingRequests.length}', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                child: Text(
+                  '${_pendingRequests.length}', 
+                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold), 
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
         ],
@@ -451,71 +451,59 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
     );
   }
 
-  Widget _buildSearchBar(ColorScheme colorScheme) {
+  Widget _buildSearchBar() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black.withOpacity(0.08)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: const Color(0xFFF5F5F7),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.black12),
       ),
       child: TextField(
-        controller: _searchController, onChanged: _onSearchChanged,
-        style: const TextStyle(color: Color(0xFF1E1E1E)),
+        controller: _searchController,
+        onChanged: _onSearchChanged,
+        style: const TextStyle(color: Colors.black, fontSize: 15),
         decoration: InputDecoration(
-          hintText: "Search by name or interest...", hintStyle: const TextStyle(color: Colors.black38, fontSize: 14),
-          prefixIcon: const Icon(Icons.search, color: Colors.black54),
-          suffixIcon: IconButton(icon: const Icon(Icons.tune, color: Colors.black54, size: 20), onPressed: () => _fetchBuddies(query: _searchController.text)),
-          border: InputBorder.none, contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          hintText: "ค้นหาด้วยชื่อผู้ใช้ หรือเบอร์โทรศัพท์...",
+          hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
+          prefixIcon: const Icon(Icons.search, color: Colors.black54, size: 20),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, color: Colors.black54, size: 18),
+                  onPressed: () {
+                    _searchController.clear();
+                    _fetchBuddies();
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
         ),
       ),
     );
   }
 
-  Widget _buildBuddyCard(Map<String, dynamic> buddy, ColorScheme colorScheme) {
-    final name = buddy['firstname'] != null ? "${buddy['firstname']} ${buddy['lastname'] ?? ''}" : buddy['username'] ?? 'Unknown';
+  Widget _buildBuddyCard(Map<String, dynamic> buddy) {
+    final name = buddy['firstname'] != null ? "${buddy['firstname']} ${buddy['lastname'] ?? ''}" : buddy['username'] ?? 'ไม่ระบุชื่อ';
     final image = ImageUtils.getProfileImageUrl(buddy['regisimagepath']);
-    final distance = buddy['distance'] ?? 'Nearby';
+    final distanceStr = buddy['distance'] != null ? "${buddy['distance']} km" : "ใกล้คุณ";
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.black.withOpacity(0.06),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          )
-        ],
+        color: const Color(0xFFF5F5F7),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black12),
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: colorScheme.primary.withOpacity(0.8), width: 1.5),
-            ),
-            child: CircleAvatar(
-              radius: 32,
-              backgroundImage: NetworkImage(image),
-              onBackgroundImageError: (_, __) {},
-            ),
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: Colors.grey.shade300,
+            backgroundImage: NetworkImage(image),
+            onBackgroundImageError: (_, __) {},
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -528,23 +516,22 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
                         name,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 17,
-                          color: const Color(0xFF1E1E1E),
+                          fontSize: 16,
+                          color: Colors.black,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: colorScheme.primary.withOpacity(0.15),
+                        color: const Color(0xFFE8F5E9),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        distance,
-                        style: TextStyle(
-                          color: Colors.black87,
+                        distanceStr,
+                        style: const TextStyle(
+                          color: Color(0xFF2E7D32),
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
@@ -552,53 +539,48 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 2),
                 Text(
-                  buddy['bio'] ?? "No bio available",
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.black54, fontSize: 12),
+                  "@${buddy['username'] ?? ''}",
+                  style: const TextStyle(color: Colors.black45, fontSize: 12),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {},
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.black26),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                        ),
-                        child: const Text("View Profile", style: TextStyle(fontSize: 13, color: Colors.black87)),
+                SizedBox(
+                  width: double.infinity,
+                  height: 38,
+                  child: ElevatedButton(
+                    onPressed: () => _sendRequest(buddy['username']),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
+                      elevation: 0,
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => _sendRequest(buddy['username']),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: colorScheme.primary,
-                          foregroundColor: const Color(0xFF1E1E1E),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          "Send Request",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                      ),
+                    child: const Text(
+                      "ส่งคำขอจับคู่",
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.person_search_rounded, size: 64, color: Colors.black26),
+          SizedBox(height: 12),
+          Text("ไม่พบรายชื่อบัดดี้", style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold)),
+          SizedBox(height: 4),
+          Text("ลองค้นหาด้วยชื่ออื่น หรือเปลี่ยนเงื่อนไขระยะทาง", style: TextStyle(color: Colors.black45, fontSize: 13)),
         ],
       ),
     );
@@ -609,7 +591,6 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
       double lat = 0.0;
       double lng = 0.0;
       try {
-        // Try getting last known position first (instant) or get current position with 3s timeout
         final position = await Geolocator.getLastKnownPosition() ??
             await Geolocator.getCurrentPosition(
               locationSettings: const LocationSettings(
@@ -632,12 +613,14 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
         'lng': lng,
       });
       if (response.statusCode == 201 && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request sent! Wait for 5 minutes.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ส่งคำขอสำเร็จแล้ว! กรุณารอการตอบรับภายใน 5 นาที'), backgroundColor: Colors.green),
+        );
       }
     } catch (e) {
       debugPrint("Error sending request: $e");
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to send request: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('ส่งคำขอล้มเหลว: $e')));
       }
     }
   }

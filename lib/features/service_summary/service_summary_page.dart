@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import '../../core/utils/location_helper.dart';
 
 class ServiceSummaryPage extends StatefulWidget {
   final String username;
@@ -76,28 +77,49 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
       List<Map<String, dynamic>> parsedTrips = [];
 
       if (allCompletedReqs.isNotEmpty) {
-        for (var req in allCompletedReqs) {
+        final List<Future<Map<String, dynamic>>> tasks = allCompletedReqs.map((req) async {
           final requestFee = double.tryParse(req['requestfee']?.toString() ?? '0.0') ?? 0.0;
           final driverShare = double.parse((requestFee * 0.40).toStringAsFixed(2));
           final rawDate = req['reqdatetime'] ?? DateTime.now().toIso8601String();
           final parsedDate = DateTime.parse(rawDate).toLocal();
           final isPub = req['pub_id'] != null;
 
-          final locationName = isPub 
-              ? (req['custname']?.toString() ?? "ผับพาร์ทเนอร์") 
-              : (req['dropoffaddress'] ?? req['pickupaddress'] ?? "จุดส่งผู้โดยสาร");
+          final double? dropoffLat = double.tryParse(req['dropofflatitude']?.toString() ?? req['dropoff_latitude']?.toString() ?? '');
+          final double? dropoffLng = double.tryParse(req['dropofflongitude']?.toString() ?? req['dropoff_longitude']?.toString() ?? '');
+
+          final double? pickupLat = double.tryParse(req['pickuplatitude']?.toString() ?? req['pickup_latitude']?.toString() ?? '');
+          final double? pickupLng = double.tryParse(req['pickuplongitude']?.toString() ?? req['pickup_longitude']?.toString() ?? '');
+
+          String dropoffAddr = req['dropoffname'] ?? req['dropoffaddress'] ?? '';
+          String pickupAddr = req['pickupname'] ?? req['pickupaddress'] ?? '';
+
+          // Always reverse geocode from dropoff lat/lng if coordinates are available
+          if (dropoffLat != null && dropoffLng != null && dropoffLat != 0 && dropoffLng != 0) {
+            dropoffAddr = await LocationHelper.getAddressFromLatLng(dropoffLat, dropoffLng);
+          } else if (dropoffAddr.trim().isEmpty || dropoffAddr == "จุดส่งผู้โดยสาร" || dropoffAddr == "จุดหมายปลายทาง") {
+            dropoffAddr = "จุดส่งผู้โดยสาร";
+          }
+
+          // Always reverse geocode from pickup lat/lng if coordinates are available
+          if (pickupLat != null && pickupLng != null && pickupLat != 0 && pickupLng != 0) {
+            pickupAddr = await LocationHelper.getAddressFromLatLng(pickupLat, pickupLng);
+          } else if (pickupAddr.trim().isEmpty || pickupAddr == "จุดนัดหมาย" || pickupAddr == "จุดนัดหมายลูกค้า") {
+            pickupAddr = "จุดนัดหมาย";
+          }
+
+          final locationName = dropoffAddr;
 
           final distanceVal = double.tryParse(req['reqdistance']?.toString() ?? '0') ?? 4.5;
           final durationVal = ((distanceVal * 3).round()).clamp(10, 60);
 
-          parsedTrips.add({
+          return {
             'id': req['requestid'] ?? req['pubrequestid'] ?? 999,
             'dateTime': parsedDate,
             'time': DateFormat('HH:mm').format(parsedDate),
             'dateFormatted': DateFormat('dd/MM/yyyy HH:mm').format(parsedDate),
             'location': locationName,
-            'pickup': req['pickupname'] ?? req['pickupaddress'] ?? "จุดนัดหมาย",
-            'dropoff': req['dropoffname'] ?? req['dropoffaddress'] ?? "จุดหมายปลายทาง",
+            'pickup': pickupAddr,
+            'dropoff': dropoffAddr,
             'distance': "${distanceVal.toStringAsFixed(1)} km",
             'distanceNum': distanceVal,
             'duration': "$durationVal นาที",
@@ -109,8 +131,10 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
             'paymentMethod': (req['paymentmethod'] == 2 || req['paymentmethod'].toString().toLowerCase().contains('wallet'))
                 ? 'App Wallet'
                 : 'เงินสด (Cash)',
-          });
-        }
+          };
+        }).toList();
+
+        parsedTrips = await Future.wait(tasks);
       }
 
       _allRawTrips = parsedTrips;

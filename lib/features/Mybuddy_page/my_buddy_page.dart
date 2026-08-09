@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:mobile_project/core/utils/image_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../core/network/api_service.dart';
 
 class MyBuddyPage extends StatefulWidget {
@@ -20,7 +21,6 @@ class _MyBuddyPageState extends State<MyBuddyPage> {
   void initState() {
     super.initState();
     _fetchActiveBuddy();
-    // Poll every 5 seconds to check if the other person left the team
     _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       _fetchActiveBuddy();
     });
@@ -40,13 +40,12 @@ class _MyBuddyPageState extends State<MyBuddyPage> {
             response.data.toString().isEmpty || 
             response.data.toString() == "null" ||
             (response.data is Map && (response.data as Map).isEmpty)) {
-          // If we previously had a team and now we don't, it means the other person left
           if (_buddyTeam != null && mounted) {
             _pollingTimer?.cancel();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('บัดดี้ของคุณออกจากทีมแล้ว')),
             );
-            Navigator.pop(context); // Go back to SearchBuddyPage
+            Navigator.pop(context);
           } else if (mounted) {
             setState(() {
               _buddyTeam = null;
@@ -71,42 +70,37 @@ class _MyBuddyPageState extends State<MyBuddyPage> {
   Future<void> _leaveTeam() async {
     if (_buddyTeam == null) return;
     
-    // Pop the confirmation dialog first
     Navigator.pop(context);
 
-    // Show a loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
+      builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.black)),
     );
 
     try {
       final response = await ApiService.put('/buddy-team/reject/${_buddyTeam!['buddyteamid']}', data: {});
       
-      // Pop the loading dialog
       if (mounted) Navigator.pop(context);
 
       if (response.statusCode == 200) {
         if (mounted) {
           _pollingTimer?.cancel();
-          // Pop the MyBuddyPage to return to SearchBuddyPage
           Navigator.pop(context);
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to leave team: ${response.statusCode}')),
+            SnackBar(content: Text('ออกจากทีมล้มเหลว: ${response.statusCode}')),
           );
         }
       }
     } catch (e) {
-      // Pop the loading dialog
       if (mounted) Navigator.pop(context);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error leaving team: $e')),
+          SnackBar(content: Text('เกิดข้อผิดพลาดในการออกจากทีม: $e')),
         );
       }
       debugPrint("Error leaving team: $e");
@@ -115,10 +109,6 @@ class _MyBuddyPageState extends State<MyBuddyPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    // หาว่าใครคือคู่หู (คนที่ไม่ใช่เรา)
     Map<String, dynamic>? buddyProfile;
     if (_buddyTeam != null) {
       if (_buddyTeam!['leaderid'].toString().toLowerCase() == widget.currentUsername.toLowerCase()) {
@@ -128,112 +118,127 @@ class _MyBuddyPageState extends State<MyBuddyPage> {
       }
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        title: const Text("My Buddy", style: TextStyle(color: Color(0xFF1E1E1E), fontWeight: FontWeight.bold)),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
         backgroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Color(0xFF1E1E1E)),
-        elevation: 0,
-        shape: Border(bottom: BorderSide(color: Colors.black.withOpacity(0.05))),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Top Bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 22),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const Text(
+                      "ทีมบัดดี้ของฉัน (My Buddy)",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator(color: Colors.black))
+                    : _buddyTeam == null
+                        ? _buildNoBuddyView()
+                        : _buildBuddyDetailsView(buddyProfile),
+              ),
+            ],
+          ),
+        ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buddyTeam == null
-              ? _buildNoBuddyView(colorScheme)
-              : _buildBuddyDetailsView(buddyProfile, colorScheme),
     );
   }
 
-  Widget _buildNoBuddyView(ColorScheme colorScheme) {
+  Widget _buildNoBuddyView() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.group_off, size: 80, color: Colors.black26),
-          const SizedBox(height: 20),
-          const Text(
-            "You don't have a buddy yet",
-            style: TextStyle(color: Color(0xFF1E1E1E), fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            "Go to search and find someone nearby!",
-            style: TextStyle(color: Colors.black54),
-          ),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(Icons.group_off_rounded, size: 72, color: Colors.black26),
+            SizedBox(height: 16),
+            Text(
+              "ยังไม่มีทีมบัดดี้ในขณะนี้",
+              style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 6),
+            Text(
+              "ไปที่หน้าค้นหาและเลือกบัดดี้ใกล้คุณเพื่อเริ่มรับงานคู่",
+              style: TextStyle(color: Colors.black54, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildBuddyDetailsView(Map<String, dynamic>? profile, ColorScheme colorScheme) {
+  Widget _buildBuddyDetailsView(Map<String, dynamic>? profile) {
     if (profile == null) return const SizedBox();
 
+    final isLeader = _buddyTeam?['leaderid']?.toString().toLowerCase() == profile['username']?.toString().toLowerCase();
+
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.all(20.0),
       child: Column(
         children: [
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(color: Colors.black.withOpacity(0.06), width: 1.2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                )
-              ],
+              color: const Color(0xFFF5F5F7),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.black12),
             ),
             child: Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: colorScheme.primary.withOpacity(0.8), width: 2),
-                  ),
-                  child: CircleAvatar(
-                    radius: 58,
-                    backgroundImage: NetworkImage(ImageUtils.getProfileImageUrl(profile['regisimagepath'])),
-                    onBackgroundImageError: (_, __) {},
-                  ),
+                CircleAvatar(
+                  radius: 54,
+                  backgroundColor: Colors.grey.shade300,
+                  backgroundImage: NetworkImage(ImageUtils.getProfileImageUrl(profile['regisimagepath'])),
+                  onBackgroundImageError: (_, __) {},
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 Text(
                   "${profile['firstname']} ${profile['lastname']}",
-                  style: const TextStyle(color: Color(0xFF1E1E1E), fontSize: 24, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: Colors.black, fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    color: (_buddyTeam?['leaderid']?.toString().toLowerCase() == profile['username']?.toString().toLowerCase())
-                        ? const Color(0xFFF59E0B) // Amber for Leader
-                        : const Color(0xFF3B82F6), // Blue for Follower
+                    color: isLeader ? const Color(0xFFF59E0B) : const Color(0xFF2E7D32),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    (_buddyTeam?['leaderid']?.toString().toLowerCase() == profile['username']?.toString().toLowerCase())
-                        ? "Leader (หัวหน้าทีม)"
-                        : "Follower (ผู้ช่วย/ผู้ตาม)",
+                    isLeader ? "Leader (หัวหน้าทีม)" : "Follower (ผู้ช่วย/ผู้ตาม)",
                     style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   "@${profile['username']}",
-                  style: TextStyle(color: colorScheme.primary, fontSize: 16, fontWeight: FontWeight.w600),
+                  style: const TextStyle(color: Colors.black54, fontSize: 14, fontWeight: FontWeight.w500),
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildActionButton(Icons.chat, "Chat", colorScheme.primary, () {}),
-                    const SizedBox(width: 20),
-                    _buildActionButton(Icons.phone, "Call", Colors.green, () {}),
+                    _buildActionButton(Icons.chat_bubble_outline_rounded, "แชท", Colors.black, () {}),
+                    const SizedBox(width: 24),
+                    _buildActionButton(Icons.phone_outlined, "โทร", Colors.black, () {}),
                   ],
                 ),
               ],
@@ -242,52 +247,62 @@ class _MyBuddyPageState extends State<MyBuddyPage> {
           const Spacer(),
           SizedBox(
             width: double.infinity,
+            height: 50,
             child: OutlinedButton(
               onPressed: () {
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text("Leave Team?"),
-                    content: const Text("Are you sure you want to cancel this buddy team?"),
+                    title: const Text("ยกเลิกทีมบัดดี้?"),
+                    content: const Text("คุณแน่ใจหรือไม่ว่าต้องการออกจากทีมบัดตี้นี้?"),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(context), child: const Text("No")),
-                      TextButton(onPressed: _leaveTeam, child: const Text("Yes, Leave", style: TextStyle(color: Colors.red))),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("ยกเลิก", style: TextStyle(color: Colors.black54)),
+                      ),
+                      TextButton(
+                        onPressed: _leaveTeam,
+                        child: const Text("ออกจากทีม", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                      ),
                     ],
                   ),
                 );
               },
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-                side: const BorderSide(color: Colors.red),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                foregroundColor: Colors.redAccent,
+                side: const BorderSide(color: Colors.redAccent),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
-              child: const Text("Leave Team", style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text("ออกจากทีมบัดดี้ (Leave Team)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             ),
           ),
+          const SizedBox(height: 12),
         ],
       ),
     );
   }
 
   Widget _buildActionButton(IconData icon, String label, Color color, VoidCallback onTap) {
-    return Column(
-      children: [
-        InkWell(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
-              shape: BoxShape.circle,
-              border: Border.all(color: color.withOpacity(0.25)),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: Colors.white, size: 20),
             ),
-            child: Icon(icon, color: color == const Color(0xFF7CE5FF) ? Colors.blue : color),
-          ),
+            const SizedBox(height: 6),
+            Text(label, style: const TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.w600)),
+          ],
         ),
-        const SizedBox(height: 8),
-        Text(label, style: const TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.w500)),
-      ],
+      ),
     );
   }
 }
