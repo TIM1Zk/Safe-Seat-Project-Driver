@@ -215,9 +215,7 @@ class _MapPageState extends State<MapPage> {
             } else if (newStatus == 'in progress' || newStatus == 'กำลังเดินทาง') {
               _currentJobStatus = 'in progress';
             } else if (newStatus == 'completed' || newStatus == 'เสร็จสิ้น') {
-              _hasActiveJob = false;
-              _activeRequestId = null;
-              _polylines = [];
+              _clearJobState();
               _initLocation();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text("งานนี้เดินทางเสร็จสิ้นแล้ว!")),
@@ -254,9 +252,7 @@ class _MapPageState extends State<MapPage> {
             if (status == 'Ready') {
               isOnline = true;
               if (_hasActiveJob) {
-                _hasActiveJob = false;
-                _activeRequestId = null;
-                _polylines = [];
+                _clearJobState();
                 _activeJobChannel?.unsubscribe();
                 _activeJobChannel = null;
                 _initLocation();
@@ -264,9 +260,7 @@ class _MapPageState extends State<MapPage> {
             } else if (status == 'Offline') {
               isOnline = false;
               if (_hasActiveJob) {
-                _hasActiveJob = false;
-                _activeRequestId = null;
-                _polylines = [];
+                _clearJobState();
                 _activeJobChannel?.unsubscribe();
                 _activeJobChannel = null;
                 _initLocation();
@@ -304,9 +298,7 @@ class _MapPageState extends State<MapPage> {
             } else if (dbStatus == 'in progress' || dbStatus == 'กำลังเดินทาง') {
               _currentJobStatus = 'in progress';
             } else if (dbStatus == 'completed' || dbStatus == 'เสร็จสิ้น') {
-              _hasActiveJob = false;
-              _activeRequestId = null;
-              _polylines = [];
+              _clearJobState();
               _activeJobChannel?.unsubscribe();
               _activeJobChannel = null;
               _initLocation();
@@ -377,15 +369,49 @@ class _MapPageState extends State<MapPage> {
             _updateJobMarkers();
           });
         }
+      } else {
+        if (mounted) {
+          setState(() {
+            _clearJobState();
+            _updateJobMarkers();
+          });
+        }
       }
     } catch (e) {
       debugPrint("[SafeSeat] Error fetching active job: $e");
     }
   }
 
+  void _clearJobState() {
+    _hasActiveJob = false;
+    _activeRequestId = null;
+    _pickupLat = null;
+    _pickupLng = null;
+    _dropoffLat = null;
+    _dropoffLng = null;
+    _pickupName = null;
+    _dropoffName = null;
+    _polylines = [];
+    if (_currentPosition != null) {
+      _markers = [
+        Marker(
+          point: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+          width: 80,
+          height: 80,
+          child: Transform.rotate(
+            angle: 0.785398,
+            child: const Icon(Icons.navigation, color: Colors.blue, size: 40),
+          ),
+        ),
+      ];
+    } else {
+      _markers = [];
+    }
+  }
+
   void _startLocationUpdater() {
     _locationUpdateTimer?.cancel();
-    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 30), (timer) async {
+    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       // If we don't have a team ID yet, periodically check it
       if (_buddyTeamId == null) {
         await _checkLeaderStatus();
@@ -403,7 +429,7 @@ class _MapPageState extends State<MapPage> {
             try {
               position = await Geolocator.getCurrentPosition(
                 locationSettings: const LocationSettings(
-                  accuracy: LocationAccuracy.low,
+                  accuracy: LocationAccuracy.high,
                   timeLimit: Duration(seconds: 5),
                 ),
               );
@@ -455,7 +481,7 @@ class _MapPageState extends State<MapPage> {
         try {
           _currentPosition = await Geolocator.getCurrentPosition(
             locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.low,
+              accuracy: LocationAccuracy.high,
               timeLimit: Duration(seconds: 5),
             ),
           );
@@ -768,6 +794,30 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> _updateJobMarkers() async {
+    if (!_hasActiveJob) {
+      if (mounted) {
+        setState(() {
+          _polylines = [];
+          if (_currentPosition != null) {
+            _markers = [
+              Marker(
+                point: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                width: 80,
+                height: 80,
+                child: Transform.rotate(
+                  angle: 0.785398,
+                  child: const Icon(Icons.navigation, color: Colors.blue, size: 40),
+                ),
+              ),
+            ];
+          } else {
+            _markers = [];
+          }
+        });
+      }
+      return;
+    }
+
     List<Marker> jobMarkers = [];
     List<Polyline> jobPolylines = [];
     
@@ -856,7 +906,7 @@ class _MapPageState extends State<MapPage> {
       );
     }
     
-    if (mounted) {
+    if (mounted && _hasActiveJob) {
       setState(() {
         _polylines = jobPolylines;
       });
@@ -1016,7 +1066,7 @@ class _MapPageState extends State<MapPage> {
           try {
             position = await Geolocator.getCurrentPosition(
               locationSettings: const LocationSettings(
-                accuracy: LocationAccuracy.low,
+                accuracy: LocationAccuracy.high,
                 timeLimit: Duration(seconds: 4),
               ),
             );
@@ -1641,6 +1691,15 @@ class _MapPageState extends State<MapPage> {
                         const SizedBox(width: 10),
                         GestureDetector(
                           onTap: () {
+                            if (_isPubJob) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text("ไม่สามารถรายงานลูกค้าเนื่องจากเป็นคำขอจากสถานบันเทิง (Pub)"),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                              return;
+                            }
                             if (_activeRequestId != null) {
                               Navigator.push(
                                 context,
@@ -1793,10 +1852,8 @@ class _MapPageState extends State<MapPage> {
                             }
 
                             setState(() {
-                              _hasActiveJob = false;
-                              _activeRequestId = null;
+                              _clearJobState();
                               _currentPosition = null;
-                              _polylines = [];
                               _initLocation();
                             });
                           }

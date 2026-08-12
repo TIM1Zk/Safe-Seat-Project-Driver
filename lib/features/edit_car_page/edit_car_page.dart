@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mobile_project/features/profile_page/profile_page.dart';
 import 'package:mobile_project/features/edit_car_page/controllers/edit_car_controller.dart';
@@ -240,7 +241,26 @@ class _EditCarPageState extends State<EditCarPage> {
                     _buildTextField(
                       controller: _brandController,
                       hintText: "ตัวอย่าง Toyota",
-                      validator: (value) => value!.isEmpty ? "กรุณากรอกยี่ห้อยานพาหนะ" : null,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'[a-zA-Z\u0E00-\u0E7F]'),
+                        ),
+                      ],
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return "กรุณากรอกยี่ห้อยานพาหนะ";
+                        }
+                        if (value.contains(' ')) {
+                          return "ต้องไม่เว้นวรรค หรือช่องว่าง";
+                        }
+                        if (!RegExp(r'^[a-zA-Z\u0E00-\u0E7F]+$').hasMatch(value)) {
+                          return "ต้องเป็นภาษาไทยหรืออังกฤษเท่านั้น";
+                        }
+                        if (value.length < 3 || value.length > 50) {
+                          return "ต้องมีความยาวตั้งแต่ 3 - 50 ตัวอักษร";
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 16),
 
@@ -248,23 +268,62 @@ class _EditCarPageState extends State<EditCarPage> {
                     _buildFormLabel("รุ่นรถของคุณคืออะไร?"),
                     _buildTextField(
                       controller: _modelController,
-                      hintText: "ตัวอย่าง supra A80",
-                      validator: (value) => value!.isEmpty ? "กรุณากรอกรุ่นรถยนต์" : null,
+                      hintText: "ตัวอย่าง Supra",
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'[a-zA-Z\u0E00-\u0E7F]'),
+                        ),
+                      ],
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return "กรุณากรอกรุ่นรถยนต์";
+                        }
+                        if (value.contains(' ')) {
+                          return "ต้องไม่เว้นวรรค หรือช่องว่าง";
+                        }
+                        if (!RegExp(r'^[a-zA-Z\u0E00-\u0E7F]+$').hasMatch(value)) {
+                          return "ต้องเป็นภาษาไทยหรืออังกฤษเท่านั้น";
+                        }
+                        if (value.length < 3 || value.length > 50) {
+                          return "ต้องมีความยาวตั้งแต่ 3 - 50 ตัวอักษร";
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 16),
 
                     // --- สีรถยนต์ & ทะเบียนรถยนต์ side-by-side ---
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildFormLabel("สีรถของคุณคือสีอะไร"),
+                              _buildFormLabel("สีรถของคุณ"),
                               _buildTextField(
                                 controller: _colorController,
                                 hintText: "ตัวอย่าง สีดำ",
-                                validator: (value) => value!.isEmpty ? "กรุณากรอกสีรถยนต์" : null,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r'[a-zA-Z\u0E00-\u0E7F]'),
+                                  ),
+                                ],
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return "กรุณากรอกสีรถยนต์";
+                                  }
+                                  if (value.contains(' ')) {
+                                    return "ต้องไม่เว้นวรรค หรือช่องว่าง";
+                                  }
+                                  if (!RegExp(r'^[a-zA-Z\u0E00-\u0E7F]+$').hasMatch(value)) {
+                                    return "ต้องเป็นภาษาไทยหรืออังกฤษเท่านั้น";
+                                  }
+                                  if (value.length < 2 || value.length > 20) {
+                                    return "ต้องมีความยาวตั้งแต่ 2 - 20 ตัวอักษร";
+                                  }
+                                  return null;
+                                },
                               ),
                             ],
                           ),
@@ -274,11 +333,27 @@ class _EditCarPageState extends State<EditCarPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildFormLabel("ป้ายทะเบียนรถของคุณคืออะไร"),
+                              _buildFormLabel("ป้ายทะเบียนรถ"),
                               _buildTextField(
                                 controller: _plateController,
-                                hintText: "ตัวอย่าง สวย 1234",
-                                validator: (value) => value!.isEmpty ? "กรุณากรอกทะเบียนรถยนต์" : null,
+                                hintText: "ตัวอย่าง กข-1234",
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.allow(
+                                    RegExp(r'[a-zA-Z0-9\u0E00-\u0E7F\-]'),
+                                  ),
+                                ],
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return "กรุณากรอกทะเบียนรถยนต์";
+                                  }
+                                  if (!RegExp(r'^[a-zA-Z0-9\u0E00-\u0E7F\-]+$').hasMatch(value)) {
+                                    return "ต้องเป็นภาษาไทย ภาษาอังกฤษ ตัวเลข หรือ (-) เท่านั้น";
+                                  }
+                                  if (value.length < 2 || value.length > 10) {
+                                    return "ต้องมีความยาวตั้งแต่ 2 - 10 ตัวอักษร";
+                                  }
+                                  return null;
+                                },
                               ),
                             ],
                           ),
@@ -401,10 +476,12 @@ class _EditCarPageState extends State<EditCarPage> {
     required TextEditingController controller,
     required String hintText,
     String? Function(String?)? validator,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextFormField(
       controller: controller,
       validator: validator,
+      inputFormatters: inputFormatters,
       style: const TextStyle(fontSize: 16, color: Colors.black),
       decoration: InputDecoration(
         hintText: hintText,

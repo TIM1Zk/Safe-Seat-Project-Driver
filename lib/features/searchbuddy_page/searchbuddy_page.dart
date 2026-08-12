@@ -594,7 +594,7 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
         final position = await Geolocator.getLastKnownPosition() ??
             await Geolocator.getCurrentPosition(
               locationSettings: const LocationSettings(
-                accuracy: LocationAccuracy.low,
+                accuracy: LocationAccuracy.high,
                 timeLimit: Duration(seconds: 3),
               ),
             );
