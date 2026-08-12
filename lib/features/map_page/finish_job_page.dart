@@ -116,6 +116,15 @@ class _FinishJobPageState extends State<FinishJobPage> {
   }
 
   void _showReportDialog() {
+    if (widget.isPubJob) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("ไม่สามารถรายงานลูกค้าเนื่องจากเป็นคำขอจากสถานบันเทิง (Pub)"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(

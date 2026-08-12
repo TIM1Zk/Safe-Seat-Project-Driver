@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_project/features/profile_page/profile_page.dart';
 import 'package:mobile_project/features/edit_profile_page/controllers/edit_profile_controller.dart';
 import 'package:mobile_project/features/edit_car_page/edit_car_page.dart';
@@ -109,16 +110,39 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   void _showEditPhoneDialog() {
     final phoneController = TextEditingController(text: _phoneNo);
+    final formKey = GlobalKey<FormState>();
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text("แก้ไขหมายเลขโทรศัพท์"),
-          content: TextField(
-            controller: phoneController,
-            keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(
-              hintText: "กรอกหมายเลขโทรศัพท์มือถือ",
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              maxLength: 10,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+              ],
+              decoration: const InputDecoration(
+                hintText: "กรอกหมายเลขโทรศัพท์มือถือ (10 หลัก)",
+                counterText: "",
+              ),
+              validator: (value) {
+                final trimmed = value?.trim() ?? "";
+                if (trimmed.isEmpty) {
+                  return "กรุณากรอกหมายเลขโทรศัพท์";
+                }
+                if (!trimmed.startsWith('0')) {
+                  return "หมายเลขโทรศัพท์ต้องขึ้นต้นด้วย 0";
+                }
+                if (trimmed.length != 10) {
+                  return "หมายเลขโทรศัพท์ต้องมี 10 ตัวอักษร";
+                }
+                return null;
+              },
             ),
           ),
           actions: [
@@ -128,12 +152,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
             TextButton(
               onPressed: () {
-                if (phoneController.text.trim().isNotEmpty) {
+                if (formKey.currentState!.validate()) {
                   setState(() {
                     _phoneNo = phoneController.text.trim();
                   });
+                  Navigator.pop(context);
                 }
-                Navigator.pop(context);
               },
               child: const Text("ตกลง"),
             ),
@@ -235,23 +259,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     ),
                     TextFormField(
                       controller: _nameController,
+                      readOnly: true,
                       decoration: const InputDecoration(
                         isDense: true,
                         contentPadding: EdgeInsets.symmetric(vertical: 8),
                         enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.black, width: 1.5),
+                          borderSide: BorderSide(color: Colors.grey, width: 1.0),
                         ),
                         focusedBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.black, width: 2.0),
+                          borderSide: BorderSide(color: Colors.grey, width: 1.0),
                         ),
                       ),
-                      style: const TextStyle(fontSize: 18, color: Colors.black, fontWeight: FontWeight.w500),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return "กรุณากรอกชื่อ";
-                        }
-                        return null;
-                      },
+                      style: const TextStyle(fontSize: 18, color: Colors.black54, fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 24),
 
@@ -299,8 +318,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       ),
                       style: const TextStyle(fontSize: 18, color: Colors.black, fontWeight: FontWeight.w500),
                       validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
+                        final email = value?.trim() ?? "";
+                        if (email.isEmpty) {
                           return "กรุณากรอกที่อยู่อีเมล";
+                        }
+                        final RegExp emailRegExp = RegExp(
+                          r'^[a-zA-Z0-9._%+-]+@(gmail\.com|hotmail\.com)$',
+                          caseSensitive: false,
+                        );
+                        if (!emailRegExp.hasMatch(email)) {
+                          return "อีเมลต้องอยู่ในรูปแบบ user@gmail.com หรือ user@hotmail.com เท่านั้น";
                         }
                         return null;
                       },

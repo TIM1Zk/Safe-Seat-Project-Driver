@@ -22,7 +22,11 @@ The project has recently been refactored to a strict **MVC Architecture**. The m
   - **Notification Badge:** Instant visual indicators for new pending requests.
   - **My Buddy Dashboard:** View current active buddy details, chat/call options, and team management (Leave Team) with instant, real-time UI state synchronization.
   - **Robust Fkey Database Handling:** Safely handles database constraints when leaving teams by dynamically resetting `buddy_team_id` references on members before deletion.
-- **🗺️ Advanced Map Routing & Real-time Job Sync:**
+- **📋 User Reporting & Strict Validation:**
+  - Dedicated **Report User Page** (`report_user_page.dart`) with comprehensive client-side data validation rules (event detail text length max 200 chars, character validation restricting to Thai/English/numbers, required image upload in JPG/PNG format up to 10 MB).
+  - Safety check disabling user reports for pub/nightlife establishment requests (`_isPubJob`).
+- **🗺️ Advanced Map Routing, High-Accuracy GPS & Real-time Job Sync:**
+  - **Enhanced GPS Accuracy:** Upgraded location tracking settings (`LocationAccuracy.high`) across `map_page.dart` and `searchbuddy_page.dart` for precise real-time positioning.
   - **OSRM Map Router Integration:** Renders accurate, dynamic routes along actual roads using the Open Source Routing Machine (OSRM) API instead of straight lines, drawing distinct paths from driver-to-pickup (blue) and pickup-to-destination (green).
   - **Real-time Job Syncing:** Dynamically updates map states when any teammate accepts a job. Listens to database events and syncs current job state (e.g. status changes: "ถึงจุดนัดหมาย", "กำลังเดินทาง", "เสร็จสิ้น") instantly between buddy devices via Supabase Realtime Broadcast.
   - **Correct Destination Mapping:** Direct extraction of accurate customer pickup and drop-off coordinates from the `requestbyuser` data model, displaying precise locations on both driver/buddy devices.

@@ -46,10 +46,71 @@ class _ReportUserPageState extends State<ReportUserPage> {
   }
 
   Future<void> _submitReport() async {
-    if (_detailController.text.trim().isEmpty) {
+    final detailText = _detailController.text.trim();
+
+    // 1. Validate Report Detail - Not empty
+    if (detailText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("กรุณากรอกรายละเอียดเหตุการณ์"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    // 2. Validate Report Detail - Length (1 - 200 chars)
+    if (detailText.length > 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("รายละเอียดเหตุการณ์ต้องมีความยาวไม่เกิน 200 ตัวอักษร"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    // 3. Validate Report Detail - Thai, English, Numbers & spaces only (No special characters like !#_.)
+    final validCharRegex = RegExp(r'^[a-zA-Z0-9\u0E00-\u0E7F\s]+$');
+    if (!validCharRegex.hasMatch(detailText)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("รายละเอียดต้องเป็นตัวอักษรภาษาไทยและอังกฤษเท่านั้น (ห้ามใช้อักขระพิเศษ)"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    // 4. Validate Report Picture - Not empty
+    if (_evidenceImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("กรุณาแนบรูปภาพประกอบการรายงาน"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    // 5. Validate Report Picture - File extension (JPG, PNG)
+    final path = _evidenceImage!.path.toLowerCase();
+    if (!path.endsWith('.jpg') && !path.endsWith('.jpeg') && !path.endsWith('.png')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("นามสกุลไฟล์รูปภาพต้องเป็น JPG หรือ PNG เท่านั้น"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    // 6. Validate Report Picture - File size (Max 10 MB)
+    final fileSizeInBytes = await _evidenceImage!.length();
+    if (fileSizeInBytes > 10 * 1024 * 1024) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("ขนาดไฟล์รูปภาพต้องไม่เกิน 10 MB"),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -199,6 +260,7 @@ class _ReportUserPageState extends State<ReportUserPage> {
                 child: TextField(
                   controller: _detailController,
                   maxLines: 5,
+                  maxLength: 200,
                   style: const TextStyle(fontSize: 16, color: Colors.black),
                   decoration: const InputDecoration(
                     hintText: "อธิบายรายละเอียดของเหตุการณ์...",
