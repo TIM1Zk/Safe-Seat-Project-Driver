@@ -82,7 +82,6 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
           final driverShare = double.parse((requestFee * 0.40).toStringAsFixed(2));
           final rawDate = req['reqdatetime'] ?? DateTime.now().toIso8601String();
           final parsedDate = DateTime.parse(rawDate).toLocal();
-          final isPub = req['pub_id'] != null;
 
           final double? dropoffLat = double.tryParse(req['dropofflatitude']?.toString() ?? req['dropoff_latitude']?.toString() ?? '');
           final double? dropoffLng = double.tryParse(req['dropofflongitude']?.toString() ?? req['dropoff_longitude']?.toString() ?? '');
