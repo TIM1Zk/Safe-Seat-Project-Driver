@@ -131,15 +131,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 counterText: "",
               ),
               validator: (value) {
-                final trimmed = value?.trim() ?? "";
-                if (trimmed.isEmpty) {
+                if (value == null || value.isEmpty) {
                   return "กรุณากรอกหมายเลขโทรศัพท์";
                 }
-                if (!trimmed.startsWith('0')) {
-                  return "หมายเลขโทรศัพท์ต้องขึ้นต้นด้วย 0";
+                if (value.contains(RegExp(r'\s'))) {
+                  return "ต้องไม่มีเว้นวรรค หรือช่องว่าง";
                 }
-                if (trimmed.length != 10) {
-                  return "หมายเลขโทรศัพท์ต้องมี 10 ตัวอักษร";
+                if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+                  return "ต้องเป็นตัวเลขเท่านั้น";
+                }
+                if (value.length != 10) {
+                  return "หมายเลขโทรศัพท์ต้องมีความยาว 10 ตัวอักษร";
                 }
                 return null;
               },

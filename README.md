@@ -14,19 +14,21 @@ The project has recently been refactored to a strict **MVC Architecture**. The m
 
 ## ✨ Key Features
 
-- **🔐 Secure Authentication & Persistent Login:** Login restricted to approved users with automatic login state storage (`shared_preferences`) and direct navigation to MapPage on successful startup/login.
+- **🔐 Secure Authentication & Strict Validation:** 
+  - Login restricted to approved driver accounts with persistent session (`shared_preferences`) and direct navigation to MapPage on successful startup.
+  - Strict input validations: Mobile phone format (10-digit, numeric only, no whitespaces) and password format (8–30 characters, alphanumeric & special characters `[!#_.]`).
 - **🚗 Driver Car Management:** Premium vehicle details card on the profile page and a dedicated frosted-blue vehicle edit screen supporting real-time database updates for drivercar details (Brand, Model, Color, Plate).
 - **🤝 Synced Buddy Request & Team System:** 
-  - **Location-Aware Search:** Find nearby buddies based on real-time location.
+  - **Location-Aware Search & Phone Filter:** Search nearby available buddies with strict 10-digit mobile phone validation and real-time live GPS positioning.
   - **Real-time Requests:** Send/Receive buddy requests with a 5-minute auto-expiry rule.
   - **Notification Badge:** Instant visual indicators for new pending requests.
   - **My Buddy Dashboard:** View current active buddy details, chat/call options, and team management (Leave Team) with instant, real-time UI state synchronization.
   - **Robust Fkey Database Handling:** Safely handles database constraints when leaving teams by dynamically resetting `buddy_team_id` references on members before deletion.
 - **📋 User Reporting & Strict Validation:**
-  - Dedicated **Report User Page** (`report_user_page.dart`) with comprehensive client-side data validation rules (event detail text length max 200 chars, character validation restricting to Thai/English/numbers, required image upload in JPG/PNG format up to 10 MB).
+  - Dedicated **Report User Page** (`report_user_page.dart`) with comprehensive client-side data validation rules (mandatory problem category selection, event detail text length 5-200 chars, character validation restricting to Thai/English/numbers, required image upload in JPG/PNG format up to 10 MB).
   - Safety check disabling user reports for pub/nightlife establishment requests (`_isPubJob`).
 - **🗺️ Advanced Map Routing, High-Accuracy GPS & Real-time Job Sync:**
-  - **Enhanced GPS Accuracy:** Upgraded location tracking settings (`LocationAccuracy.high`) across `map_page.dart` and `searchbuddy_page.dart` for precise real-time positioning.
+  - **Enhanced Real-time GPS Tracking:** Continuous position stream (`Geolocator.getPositionStream`) with `LocationAccuracy.high` dynamically updating driver markers and syncing leader coordinates directly to Supabase (`buddyteam` table).
   - **OSRM Map Router Integration:** Renders accurate, dynamic routes along actual roads using the Open Source Routing Machine (OSRM) API instead of straight lines, drawing distinct paths from driver-to-pickup (blue) and pickup-to-destination (green).
   - **Real-time Job Syncing:** Dynamically updates map states when any teammate accepts a job. Listens to database events and syncs current job state (e.g. status changes: "ถึงจุดนัดหมาย", "กำลังเดินทาง", "เสร็จสิ้น") instantly between buddy devices via Supabase Realtime Broadcast.
   - **Correct Destination Mapping:** Direct extraction of accurate customer pickup and drop-off coordinates from the `requestbyuser` data model, displaying precise locations on both driver/buddy devices.
@@ -36,11 +38,11 @@ The project has recently been refactored to a strict **MVC Architecture**. The m
   - **Team-based API Querying:** Intelligently joins and matches reports to drivers based on their current `buddy_team_id` context.
 - **👤 Profile Management & Redesign:** 
   - Beautiful white-themed profile detail screen (`DriverProfileDetailPage`) with a custom circular pencil/edit button.
-  - Redesigned "แก้ไขข้อมูลบัญชี" (`EditProfilePage`) screen matching custom mockup layout to update full name (first name & last name), email, and phone number.
+  - Redesigned "แก้ไขข้อมูลบัญชี" (`EditProfilePage`) screen matching custom mockup layout to update full name (first name & last name), email, and phone number with strict validation.
   - **🆕 Review & Rating Display:** Displays real-time average review ratings and a list of feedback/comments from users on the profile page.
   - **🆕 User Reported History:** A dedicated tracking screen (`UserReportedHistoryPage`) to view and filter all submitted user-related reports by status ("ทั้งหมด", "กำลังตรวจสอบ", "ตรวจสอบแล้ว", "ไม่อนุมัติ" with red indicator color).
 - **💰 Upgraded Wallet System:** Premium styled UI cards displaying real-time balance, custom withdrawal input flow, and withdrawal transaction history screen.
-- **📍 Location & Team Tracking:** Automatic capture and storage of leader's GPS coordinates every 30 seconds into `buddyteam` database table when active.
+- **📍 Location & Team Tracking:** Live GPS stream and forced sync mechanism for seamless buddy coordination.
 - **🖼️ Image Optimization:** Dynamic JSON parsing utility for resilient profile picture loading across the app.
 - **🎨 Premium UI & Experience Enhancements:** Beautiful white-themed search buddy cards, modern search input fields with subtle shadow borders, and redesigned buddy profile/dashboard cards for a cleaner, more interactive user experience.
 - **🏗️ MVC Architecture:** Clean separation of concerns across the full stack.

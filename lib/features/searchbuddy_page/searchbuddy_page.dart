@@ -271,8 +271,32 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
     }
   }
 
+  String? _searchError;
+
+  String? _validateSearchPhone(String value) {
+    if (value.isEmpty) return null;
+    if (value.contains(RegExp(r'\s'))) {
+      return 'ต้องไม่มีเว้นวรรค หรือช่องว่าง';
+    }
+    if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+      return 'ต้องเป็นตัวเลขเท่านั้น';
+    }
+    if (value.length != 10) {
+      return 'ต้องมีความยาว 10 ตัวอักษร';
+    }
+    return null;
+  }
+
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
+    
+    final error = _validateSearchPhone(query);
+    setState(() => _searchError = error);
+
+    if (error != null) {
+      return;
+    }
+
     _debounce = Timer(const Duration(milliseconds: 500), () => _fetchBuddies(query: query));
   }
 
@@ -452,33 +476,59 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
   }
 
   Widget _buildSearchBar() {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F7),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.black12),
-      ),
-      child: TextField(
-        controller: _searchController,
-        onChanged: _onSearchChanged,
-        style: const TextStyle(color: Colors.black, fontSize: 15),
-        decoration: InputDecoration(
-          hintText: "ค้นหาด้วยชื่อผู้ใช้ หรือเบอร์โทรศัพท์...",
-          hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
-          prefixIcon: const Icon(Icons.search, color: Colors.black54, size: 20),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear, color: Colors.black54, size: 18),
-                  onPressed: () {
-                    _searchController.clear();
-                    _fetchBuddies();
-                  },
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5F5F7),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: _searchError != null ? Colors.redAccent : Colors.black12,
+              width: _searchError != null ? 1.5 : 1.0,
+            ),
+          ),
+          child: TextField(
+            controller: _searchController,
+            onChanged: _onSearchChanged,
+            keyboardType: TextInputType.phone,
+            style: const TextStyle(color: Colors.black, fontSize: 15),
+            decoration: InputDecoration(
+              hintText: "ค้นหาด้วยหมายเลขโทรศัพท์ (10 หลัก)...",
+              hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
+              prefixIcon: const Icon(Icons.phone_android_rounded, color: Colors.black54, size: 20),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.black54, size: 18),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchError = null);
+                        _fetchBuddies();
+                      },
+                    )
+                  : null,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
         ),
-      ),
+        if (_searchError != null) ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 4),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 14),
+                const SizedBox(width: 4),
+                Text(
+                  _searchError!,
+                  style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -580,7 +630,7 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
           SizedBox(height: 12),
           Text("ไม่พบรายชื่อบัดดี้", style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold)),
           SizedBox(height: 4),
-          Text("ลองค้นหาด้วยชื่ออื่น หรือเปลี่ยนเงื่อนไขระยะทาง", style: TextStyle(color: Colors.black45, fontSize: 13)),
+          Text("ลองค้นหาด้วยหมายเลขโทรศัพท์ 10 หลักใหม่อีกครั้ง", style: TextStyle(color: Colors.black45, fontSize: 13)),
         ],
       ),
     );
@@ -591,17 +641,14 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
       double lat = 0.0;
       double lng = 0.0;
       try {
-        final position = await Geolocator.getLastKnownPosition() ??
-            await Geolocator.getCurrentPosition(
-              locationSettings: const LocationSettings(
-                accuracy: LocationAccuracy.high,
-                timeLimit: Duration(seconds: 3),
-              ),
-            );
-        if (position != null) {
-          lat = position.latitude;
-          lng = position.longitude;
-        }
+        final position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 4),
+          ),
+        );
+        lat = position.latitude;
+        lng = position.longitude;
       } catch (e) {
         debugPrint("Error fetching location for request: $e");
       }

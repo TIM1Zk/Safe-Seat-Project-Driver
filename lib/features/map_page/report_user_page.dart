@@ -48,11 +48,32 @@ class _ReportUserPageState extends State<ReportUserPage> {
   Future<void> _submitReport() async {
     final detailText = _detailController.text.trim();
 
-    // 1. Validate Report Detail - Not empty
+    // 0. Validate Report Reason - Selected
+    if (_selectedReason.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("กรุณาเลือกหัวข้อปัญหาที่พบ"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    // 1. Validate Report Detail - Not empty and minimum length (at least 5 characters)
     if (detailText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("กรุณากรอกรายละเอียดเหตุการณ์"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    if (detailText.length < 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("กรุณากรอกรายละเอียดเหตุการณ์อย่างน้อย 5 ตัวอักษร"),
           backgroundColor: Colors.redAccent,
         ),
       );

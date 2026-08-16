@@ -34,6 +34,7 @@ class _MapPageState extends State<MapPage> {
   bool _isLoadingLeaderStatus = true;
   int? _buddyTeamId;
   Timer? _locationUpdateTimer;
+  StreamSubscription<Position>? _positionStreamSubscription;
   RealtimeChannel? _teamChannel;
   RealtimeChannel? _activeJobChannel;
   StreamSubscription<List<Map<String, dynamic>>>? _teamStatusSubscription;
@@ -89,6 +90,7 @@ class _MapPageState extends State<MapPage> {
   @override
   void dispose() {
     _locationUpdateTimer?.cancel();
+    _positionStreamSubscription?.cancel();
     _teamChannel?.unsubscribe();
     _activeJobChannel?.unsubscribe();
     _teamStatusSubscription?.cancel();
@@ -411,100 +413,86 @@ class _MapPageState extends State<MapPage> {
 
   void _startLocationUpdater() {
     _locationUpdateTimer?.cancel();
-    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
-      // If we don't have a team ID yet, periodically check it
+    _positionStreamSubscription?.cancel();
+
+    // 1. Timer สำหรับตรวจสอบ leader status และ sync พิกัดสำรองทุกๆ 10 วินาที
+    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
       if (_buddyTeamId == null) {
         await _checkLeaderStatus();
       }
+    });
 
-      // Only Leader updates location, and only when matched
+    // 2. Real-time Location Stream ดักจับการเคลื่อนที่และการเปลี่ยนพิกัดทันที (รวมถึง Emulator)
+    const LocationSettings locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 0, // รับทุกการขยับแม้ 0 เมตร (ดีมากสำหรับการทดสอบบน Emulator)
+    );
+
+    _positionStreamSubscription = Geolocator.getPositionStream(locationSettings: locationSettings)
+        .listen((Position position) async {
+      if (!mounted) return;
+
+      setState(() {
+        _currentPosition = position;
+        _currentAddress = "พิกัด: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}";
+      });
+
+      // ถ้าไม่มีงานค้าง ให้ขยับ Driver Marker บนแผนที่ตามพิกัดสด
+      if (!_hasActiveJob) {
+        _addDriverMarkerAt(position.latitude, position.longitude, showSnackBar: false);
+      } else {
+        _updateJobMarkers();
+      }
+
+      // ส่งพิกัดขึ้น Supabase ทันทีเมื่อเป็น Leader และมี buddyTeamId
       if (_isLeader && _buddyTeamId != null) {
         try {
-          Position? position;
-          try {
-            position = await Geolocator.getLastKnownPosition();
-          } catch (_) {}
-
-          if (position == null) {
-            try {
-              position = await Geolocator.getCurrentPosition(
-                locationSettings: const LocationSettings(
-                  accuracy: LocationAccuracy.high,
-                  timeLimit: Duration(seconds: 5),
-                ),
-              );
-            } catch (_) {
-              position = _currentPosition;
-            }
-          }
-
-          if (position != null) {
-            if (mounted) {
-              setState(() {
-                _currentPosition = position;
-                _currentAddress = "พิกัด: ${position!.latitude.toStringAsFixed(5)}, ${position!.longitude.toStringAsFixed(5)}";
-              });
-            }
-
-            await Supabase.instance.client
-                .from('buddyteam')
-                .update({
-                  'currentloclat': position.latitude,
-                  'currentloclng': position.longitude,
-                })
-                .eq('buddyteamid', _buddyTeamId!);
-          }
+          await Supabase.instance.client
+              .from('buddyteam')
+              .update({
+                'currentloclat': position.latitude,
+                'currentloclng': position.longitude,
+              })
+              .eq('buddyteamid', _buddyTeamId!);
         } catch (e) {
-          debugPrint("Failed to update team location: $e");
+          debugPrint("Failed to update real-time team location to Supabase: $e");
         }
       }
+    }, onError: (e) {
+      debugPrint("Error in location stream: $e");
     });
   }
 
   Future<void> _forceUpdateLocation() async {
-    if (!_isLeader) {
-      debugPrint("Not a leader. Cannot update GPS.");
-      return;
-    }
-    if (_buddyTeamId == null) {
-      debugPrint("BuddyTeamId is null. Cannot update GPS.");
-      return;
-    }
-    
-    // พยายามดึงพิกัดใหม่ถ้ายังไม่มี
-    if (_currentPosition == null) {
-      try {
-        _currentPosition = await Geolocator.getLastKnownPosition();
-      } catch (_) {}
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 5),
+        ),
+      );
 
-      if (_currentPosition == null) {
-        try {
-          _currentPosition = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.high,
-              timeLimit: Duration(seconds: 5),
-            ),
-          );
-        } catch (e) {
-          debugPrint("Failed to fetch GPS during force update: $e");
-          return;
-        }
+      if (mounted) {
+        setState(() {
+          _currentPosition = position;
+          _currentAddress = "พิกัด: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}";
+        });
+        _moveToCoordinates(position.latitude, position.longitude, zoom: 15);
+        _addDriverMarkerAt(position.latitude, position.longitude, showSnackBar: false);
       }
-    }
 
-    if (_currentPosition != null) {
-      try {
+      if (_isLeader && _buddyTeamId != null) {
         await Supabase.instance.client
             .from('buddyteam')
             .update({
-              'currentloclat': _currentPosition!.latitude,
-              'currentloclng': _currentPosition!.longitude,
+              'currentloclat': position.latitude,
+              'currentloclng': position.longitude,
             })
             .eq('buddyteamid', _buddyTeamId!);
         debugPrint("Forced GPS update to DB successful.");
-      } catch (e) {
-        debugPrint("Failed to force update team location: $e");
       }
+    } catch (e) {
+      debugPrint("Failed to force update team location: $e");
     }
   }
 
@@ -1058,34 +1046,29 @@ class _MapPageState extends State<MapPage> {
 
       if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
 
-        // ดึงตำแหน่งประวัติล่าสุดแบบรวดเร็ว
-        Position? position = await Geolocator.getLastKnownPosition();
-        
-        // ดึงตำแหน่งสดด้วยความแม่นยำต่ำเพื่อความชัวร์และเร็วสูงสุดบน Emulator (พร้อม Fallback กรณี Timeout)
-        if (position == null) {
-          try {
-            position = await Geolocator.getCurrentPosition(
-              locationSettings: const LocationSettings(
-                accuracy: LocationAccuracy.high,
-                timeLimit: Duration(seconds: 4),
-              ),
-            );
-          } catch (e) {
-            debugPrint("[SafeSeat Mapbox] Timeout/Error fetching live position, fallback to default: $e");
-            // Fallback location (Bangkok default coordinates) so app won't hang
-            position = Position(
-              longitude: 100.5018,
-              latitude: 13.7563,
-              timestamp: DateTime.now(),
-              accuracy: 100,
-              altitude: 0,
-              heading: 0,
-              speed: 0,
-              speedAccuracy: 0,
-              altitudeAccuracy: 0,
-              headingAccuracy: 0,
-            );
-          }
+        // ดึงตำแหน่งสดของเครื่องโดยตรง (ไม่ใช้แคชเก่า getLastKnownPosition)
+        Position position;
+        try {
+          position = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              timeLimit: Duration(seconds: 4),
+            ),
+          );
+        } catch (e) {
+          debugPrint("[SafeSeat Mapbox] Timeout/Error fetching live position: $e");
+          position = Position(
+            longitude: 100.5018,
+            latitude: 13.7563,
+            timestamp: DateTime.now(),
+            accuracy: 100,
+            altitude: 0,
+            heading: 0,
+            speed: 0,
+            speedAccuracy: 0,
+            altitudeAccuracy: 0,
+            headingAccuracy: 0,
+          );
         }
 
         String address = "พิกัด: " + position.latitude.toStringAsFixed(5) + ", " + position.longitude.toStringAsFixed(5);

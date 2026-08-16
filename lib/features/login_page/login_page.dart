@@ -100,6 +100,44 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  String? _validatePhoneNo(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'กรุณากรอกหมายเลขโทรศัพท์';
+    }
+    if (value.contains(RegExp(r'\s'))) {
+      return 'ต้องไม่มีเว้นวรรค หรือช่องว่าง';
+    }
+    if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+      return 'ต้องเป็นตัวเลขเท่านั้น';
+    }
+    if (value.length != 10) {
+      return 'ต้องมีความยาว 10 ตัวอักษร';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'กรุณากรอกรหัสผ่าน';
+    }
+    if (value.contains(RegExp(r'\s'))) {
+      return 'ต้องไม่มีเว้นวรรค หรือช่องว่าง';
+    }
+    if (value.length < 8 || value.length > 30) {
+      return 'ต้องมีความยาวตั้งแต่ 8 - 30 ตัวอักษร';
+    }
+    if (!RegExp(r'^[a-zA-Z0-9!#_.]+$').hasMatch(value)) {
+      return 'ต้องเป็นอักษรอังกฤษ ตัวเลข และอักขระพิเศษ [!#_.] เท่านั้น';
+    }
+    final hasLetter = RegExp(r'[a-zA-Z]').hasMatch(value);
+    final hasDigit = RegExp(r'[0-9]').hasMatch(value);
+    final hasSpecial = RegExp(r'[!#_.]').hasMatch(value);
+    if (!hasLetter || !hasDigit || !hasSpecial) {
+      return 'ต้องเป็นอักษรอังกฤษตัวเลข รวมอักขระพิเศษ[!#_.]';
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     const accentColor = Color(0xFF7CE5FF); // Frosted Blue
@@ -246,18 +284,20 @@ class _LoginPageState extends State<LoginPage> {
                               children: [
                                 _buildGlassField(
                                   controller: usernamecontroller,
-                                  label: "ชื่อผู้ใช้",
-                                  icon: Icons.person_outline_rounded,
+                                  label: "หมายเลขโทรศัพท์มือถือ (phoneNo)",
+                                  icon: Icons.phone_android_rounded,
                                   accentColor: accentColor,
-                                  keyboardType: TextInputType.text,
+                                  keyboardType: TextInputType.phone,
+                                  validator: _validatePhoneNo,
                                 ),
                                 const SizedBox(height: 20),
                                 _buildGlassField(
                                   controller: passwordcontroller,
-                                  label: "รหัสผ่าน",
+                                  label: "รหัสผ่าน (Password)",
                                   icon: Icons.lock_outline_rounded,
                                   accentColor: accentColor,
                                   obscureText: true,
+                                  validator: _validatePassword,
                                 ),
                                 const SizedBox(height: 40),
 
@@ -340,6 +380,7 @@ class _LoginPageState extends State<LoginPage> {
     required Color accentColor,
     bool obscureText = false,
     TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,7 +422,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
           ),
-          validator: (value) => value!.isEmpty ? "กรุณากรอกข้อมูล" : null,
+          validator: validator ?? ((value) => value!.isEmpty ? "กรุณากรอกข้อมูล" : null),
         ),
       ],
     );
