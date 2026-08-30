@@ -16,7 +16,6 @@ class _WithdrawWalletPageState extends State<WithdrawWalletPage> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   double _currentBalance = 0.0;
-  String _selectedMethod = 'ธนาคาร (Bank Transfer)';
 
   @override
   void initState() {
@@ -129,16 +128,16 @@ class _WithdrawWalletPageState extends State<WithdrawWalletPage> {
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF1E1E1E), Color(0xFF3A3A3A)],
+                      colors: [Color(0xFF2340A7), Color(0xFF0044C9)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.12),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                        color: const Color(0xFF2340A7).withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
                       ),
                     ],
                   ),
@@ -170,13 +169,40 @@ class _WithdrawWalletPageState extends State<WithdrawWalletPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "จำนวนเงินที่ต้องการถอน",
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              "จำนวนเงินที่ต้องการถอน",
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _currentBalance > 0
+                                  ? () {
+                                      setState(() {
+                                        _amountController.text = _currentBalance.toStringAsFixed(2);
+                                      });
+                                    }
+                                  : null,
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: const Text(
+                                "ถอนทั้งหมด",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF00A950),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 8),
                         TextFormField(
@@ -226,7 +252,7 @@ class _WithdrawWalletPageState extends State<WithdrawWalletPage> {
                         ),
                         const SizedBox(height: 24),
                         const Text(
-                          "ช่องทางการรับเงิน",
+                          "บัญชีธนาคารปลายทาง",
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
@@ -234,46 +260,68 @@ class _WithdrawWalletPageState extends State<WithdrawWalletPage> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          value: _selectedMethod,
-                          dropdownColor: Colors.white,
-                          style: const TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w500),
-                          decoration: InputDecoration(
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(color: Colors.black12),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(color: Colors.black12),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(color: Colors.black, width: 1.5),
-                            ),
-                            filled: true,
-                            fillColor: const Color(0xFFF5F5F7),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+
+                        // Fixed KBank Account Display
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5FDF7),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFF00A950).withOpacity(0.3)),
                           ),
-                          items: [
-                            'ธนาคาร (Bank Transfer)',
-                            'PromptPay (พร้อมเพย์)',
-                            'TrueMoney Wallet',
-                          ].map((String method) {
-                            return DropdownMenuItem<String>(
-                              value: method,
-                              child: Text(method, style: const TextStyle(color: Colors.black)),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) {
-                            if (newValue != null) {
-                              setState(() {
-                                _selectedMethod = newValue;
-                              });
-                            }
-                          },
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF00A950), // KBank Green
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: const [
+                                    Icon(Icons.account_balance, color: Colors.white, size: 18),
+                                    Text(
+                                      "KBANK",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: const [
+                                    Text(
+                                      "ธนาคารกสิกรไทย (KBank)",
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      "บัญชีหลักสำหรับรับเงิน • ฟรีค่าธรรมเนียม",
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.black54,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.check_circle, color: Color(0xFF00A950), size: 20),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 36),
+                        const SizedBox(height: 28),
                         SizedBox(
                           width: double.infinity,
                           height: 52,

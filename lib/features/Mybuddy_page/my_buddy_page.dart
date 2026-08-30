@@ -198,28 +198,35 @@ class _MyBuddyPageState extends State<MyBuddyPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F5F7),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.black12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               children: [
                 CircleAvatar(
                   radius: 54,
-                  backgroundColor: Colors.grey.shade300,
+                  backgroundColor: const Color(0xFFE2E8F0),
                   backgroundImage: NetworkImage(ImageUtils.getProfileImageUrl(profile['regisimagepath'])),
                   onBackgroundImageError: (_, __) {},
                 ),
                 const SizedBox(height: 16),
                 Text(
                   "${profile['firstname']} ${profile['lastname']}",
-                  style: const TextStyle(color: Colors.black, fontSize: 22, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: Color(0xFF1E293B), fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isLeader ? const Color(0xFFF59E0B) : const Color(0xFF2E7D32),
+                    color: isLeader ? const Color(0xFFD97706) : const Color(0xFF059669),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -230,15 +237,15 @@ class _MyBuddyPageState extends State<MyBuddyPage> {
                 const SizedBox(height: 6),
                 Text(
                   "@${profile['username']}",
-                  style: const TextStyle(color: Colors.black54, fontSize: 14, fontWeight: FontWeight.w500),
+                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 14, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildActionButton(Icons.chat_bubble_outline_rounded, "แชท", Colors.black, () {}),
+                    _buildActionButton(Icons.chat_bubble_outline_rounded, "แชท", const Color(0xFF2340A7), () {}),
                     const SizedBox(width: 24),
-                    _buildActionButton(Icons.phone_outlined, "โทร", Colors.black, () {}),
+                    _buildActionButton(Icons.phone_outlined, "โทร", const Color(0xFF2340A7), () {}),
                   ],
                 ),
               ],
@@ -258,19 +265,19 @@ class _MyBuddyPageState extends State<MyBuddyPage> {
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: const Text("ยกเลิก", style: TextStyle(color: Colors.black54)),
+                        child: const Text("ยกเลิก", style: TextStyle(color: Color(0xFF64748B))),
                       ),
                       TextButton(
                         onPressed: _leaveTeam,
-                        child: const Text("ออกจากทีม", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                        child: const Text("ออกจากทีม", style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
                 );
               },
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.redAccent,
-                side: const BorderSide(color: Colors.redAccent),
+                foregroundColor: const Color(0xFFDC2626),
+                side: const BorderSide(color: Color(0xFFDC2626)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
               child: const Text("ออกจากทีมบัดดี้ (Leave Team)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
@@ -293,13 +300,20 @@ class _MyBuddyPageState extends State<MyBuddyPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.black,
+                color: color,
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
               child: Icon(icon, color: Colors.white, size: 20),
             ),
             const SizedBox(height: 6),
-            Text(label, style: const TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.w600)),
+            Text(label, style: const TextStyle(color: Color(0xFF1E293B), fontSize: 12, fontWeight: FontWeight.w600)),
           ],
         ),
       ),

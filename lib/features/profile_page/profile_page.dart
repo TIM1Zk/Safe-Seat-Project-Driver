@@ -159,6 +159,25 @@ class ProfilePage extends StatelessWidget {
                                           color: Colors.black54,
                                         ),
                                       ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF2340A7).withOpacity(0.12),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          _formatSkillsBadge(data['driverskills']),
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF2340A7),
+                                          ),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ],
@@ -401,14 +420,13 @@ class ProfilePage extends StatelessWidget {
                             ),
                           ),
                           // Bottom section (Academy & Blog)
-                          Container(
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF707074),
-                              borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(20),
-                                bottomRight: Radius.circular(20),
-                              ),
+                          Material(
+                            color: const Color(0xFF707074),
+                            borderRadius: const BorderRadius.only(
+                              bottomLeft: Radius.circular(20),
+                              bottomRight: Radius.circular(20),
                             ),
+                            clipBehavior: Clip.antiAlias,
                             child: Column(
                               children: [
                                 ListTile(
@@ -553,5 +571,48 @@ class ProfilePage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatSkillsBadge(dynamic rawSkills) {
+    List<String> list = [];
+    if (rawSkills != null) {
+      if (rawSkills is List) {
+        list = rawSkills.map((e) => e.toString()).toList();
+      } else if (rawSkills is String && rawSkills.trim().isNotEmpty) {
+        final decoded = rawSkills.trim();
+        if (decoded.startsWith('[') && decoded.endsWith(']')) {
+          list = decoded
+              .replaceAll('[', '')
+              .replaceAll(']', '')
+              .replaceAll('"', '')
+              .split(',')
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList();
+        } else {
+          list = [decoded];
+        }
+      }
+    }
+
+    if (list.isEmpty) {
+      return "ขับขี่ทั่วไป";
+    }
+
+    // Map common skills to clean short names
+    List<String> cleanSkills = [];
+    for (var s in list) {
+      final low = s.toLowerCase();
+      if (low.contains('ev') || low.contains('electric') || low.contains('ไฟฟ้า')) {
+        if (!cleanSkills.contains('EV')) cleanSkills.add('EV');
+      } else if (low.contains('auto') || low.contains('ออโต้')) {
+        if (!cleanSkills.contains('Auto')) cleanSkills.add('Auto');
+      } else if (low.contains('manual') || low.contains('ธรรมดา') || low.contains('กระปุก')) {
+        if (!cleanSkills.contains('Manual')) cleanSkills.add('Manual');
+      } else {
+        cleanSkills.add(s);
+      }
+    }
+    return cleanSkills.join(' • ');
   }
 }

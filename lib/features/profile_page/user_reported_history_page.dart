@@ -56,7 +56,9 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
     final recentReports = _reports.where((r) {
       if (r['reportdate'] == null) return true;
       try {
-        final parsedDate = DateTime.parse(r['reportdate'].toString()).toLocal();
+        final rawStr = r['reportdate'].toString();
+        final isoStr = (!rawStr.endsWith('Z') && !rawStr.contains('+')) ? '${rawStr}Z' : rawStr;
+        final parsedDate = DateTime.parse(isoStr).toLocal();
         return parsedDate.isAfter(oneMonthAgo) || parsedDate.isAtSameMomentAs(oneMonthAgo);
       } catch (e) {
         return true;
@@ -210,7 +212,9 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
     String formattedDate = "ไม่ระบุวันที่";
     if (report['reportdate'] != null) {
       try {
-        final DateTime parsed = DateTime.parse(report['reportdate']).toLocal();
+        final rawStr = report['reportdate'].toString();
+        final isoStr = (!rawStr.endsWith('Z') && !rawStr.contains('+')) ? '${rawStr}Z' : rawStr;
+        final DateTime parsed = DateTime.parse(isoStr).toLocal();
         formattedDate = DateFormat('dd MMM yyyy, HH:mm น.').format(parsed);
       } catch (e) {
         formattedDate = report['reportdate'].toString();
@@ -251,31 +255,37 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.05),
-                          shape: BoxShape.circle,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.05),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.assignment_outlined,
+                            color: Colors.black87,
+                            size: 18,
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.assignment_outlined,
-                          color: Colors.black87,
-                          size: 18,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            typeThai,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        typeThai,
-                        style: const TextStyle(
-                          color: Colors.black87,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
@@ -364,7 +374,9 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
     String formattedDate = "ไม่ระบุวันที่";
     if (report['reportdate'] != null) {
       try {
-        final DateTime parsed = DateTime.parse(report['reportdate']).toLocal();
+        final rawStr = report['reportdate'].toString();
+        final isoStr = (!rawStr.endsWith('Z') && !rawStr.contains('+')) ? '${rawStr}Z' : rawStr;
+        final DateTime parsed = DateTime.parse(isoStr).toLocal();
         formattedDate = DateFormat('dd MMMM yyyy, HH:mm น.').format(parsed);
       } catch (e) {
         formattedDate = report['reportdate'].toString();

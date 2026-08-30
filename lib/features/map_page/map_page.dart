@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:realtime_client/src/types.dart';
@@ -25,7 +24,7 @@ class MapPage extends StatefulWidget {
   State<MapPage> createState() => _MapPageState();
 }
 
-class _MapPageState extends State<MapPage> {
+class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
   final MapController _mapController = MapController();
   bool isSatelliteMode = false;
   bool isMapReady = false;
@@ -33,6 +32,7 @@ class _MapPageState extends State<MapPage> {
   bool _isLeader = true;
   bool _isLoadingLeaderStatus = true;
   int? _buddyTeamId;
+  String? _currentUsername;
   Timer? _locationUpdateTimer;
   StreamSubscription<Position>? _positionStreamSubscription;
   RealtimeChannel? _teamChannel;
@@ -54,6 +54,7 @@ class _MapPageState extends State<MapPage> {
 
   // Active job states
   bool _hasActiveJob = false;
+  bool _isJobSheetCollapsed = false;
   String _currentJobStatus = 'going to pickup';
   bool _isPubJob = false;
   String? _pickupName;
@@ -62,10 +63,15 @@ class _MapPageState extends State<MapPage> {
   double? _pickupLng;
   double? _dropoffLat;
   double? _dropoffLng;
+  String? _jobDuration;
 
   Position? _currentPosition;
   String _currentAddress = "กำลังดึงข้อมูลที่อยู่พิกัด GPS ปัจจุบัน...";
 
+  // Buddy Partner (Follower/Leader) Live GPS
+  double? _buddyLat;
+  double? _buddyLng;
+  String? _buddyName;
 
   List<Marker> _markers = [];
   List<Polyline> _polylines = [];
@@ -75,10 +81,11 @@ class _MapPageState extends State<MapPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initLocation();
     _checkLeaderStatus();
     _startLocationUpdater();
-    
+
     // ตั้งค่าสถานะแผนที่พร้อมในบิลด์ถัดไป
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {
@@ -88,7 +95,21 @@ class _MapPageState extends State<MapPage> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint(
+        "[SafeSeat] App resumed: syncing online and active job state from DB",
+      );
+      _checkLeaderStatus();
+      if (_buddyTeamId != null) {
+        _fetchActiveJobForTeam(_buddyTeamId!);
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _locationUpdateTimer?.cancel();
     _positionStreamSubscription?.cancel();
     _teamChannel?.unsubscribe();
@@ -98,12 +119,34 @@ class _MapPageState extends State<MapPage> {
     super.dispose();
   }
 
+  List<dynamic> _mySkills = [];
+
   Future<void> _checkLeaderStatus() async {
     try {
       String? username = await SessionManager.getUsername();
       if (username != null) {
+        if (mounted) setState(() => _currentUsername = username);
+
+        // โหลดข้อมูลสกิลของตนเองจาก /users/$username
+        try {
+          final profileRes = await ApiService.get('/users/$username');
+          if (profileRes.statusCode == 200 && profileRes.data != null) {
+            final profData = profileRes.data;
+            if (profData != null && profData['driverskills'] != null) {
+              if (profData['driverskills'] is List) {
+                _mySkills = profData['driverskills'];
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint("Error fetching driver profile skills: $e");
+        }
+
         final response = await ApiService.get('/buddy-team/active/$username');
-        if (response.statusCode == 200 && response.data != null && response.data.toString().isNotEmpty && response.data.toString() != "null") {
+        if (response.statusCode == 200 &&
+            response.data != null &&
+            response.data.toString().isNotEmpty &&
+            response.data.toString() != "null") {
           final data = response.data;
           if (data is Map && data.isNotEmpty) {
             String leaderId = data['leaderid'].toString().toLowerCase();
@@ -111,124 +154,267 @@ class _MapPageState extends State<MapPage> {
             if (data['buddyteamid'] != null) {
               teamId = int.tryParse(data['buddyteamid'].toString());
             }
+            final status = data['teamstatus']?.toString();
+            final bool isCurrentlyOnline =
+                (status == 'Ready' || status == 'Busy');
+
             if (mounted) {
               setState(() {
                 _isLeader = (leaderId == username.toLowerCase());
                 _buddyTeamId = teamId;
+                isOnline = isCurrentlyOnline;
               });
               if (_buddyTeamId != null) {
                 _setupRealtimeListeners(_buddyTeamId!);
+                _fetchActiveJobForTeam(_buddyTeamId!);
               }
             }
           } else {
-             if (mounted) setState(() => _isLeader = true);
+            if (mounted) {
+              setState(() {
+                _buddyTeamId = null;
+                _buddyLat = null;
+                _buddyLng = null;
+                _buddyName = null;
+                _isLeader = true;
+              });
+            }
           }
         } else {
-           if (mounted) setState(() => _isLeader = true);
+          if (mounted) {
+            setState(() {
+              _buddyTeamId = null;
+              _buddyLat = null;
+              _buddyLng = null;
+              _buddyName = null;
+              _isLeader = true;
+            });
+          }
         }
       }
     } catch (e) {
-       debugPrint("Error checking leader status: $e");
-       if (mounted) setState(() => _isLeader = true);
+      debugPrint("Error checking leader status: $e");
+      if (mounted) {
+        setState(() {
+          _buddyTeamId = null;
+          _buddyLat = null;
+          _buddyLng = null;
+          _buddyName = null;
+          _isLeader = true;
+        });
+      }
     } finally {
-       if (mounted) setState(() => _isLoadingLeaderStatus = false);
+      if (mounted) setState(() => _isLoadingLeaderStatus = false);
     }
   }
 
   void _setupRealtimeListeners(int teamId) {
     final supabase = Supabase.instance.client;
-    debugPrint("[SafeSeat debug] Setting up Realtime listeners for teamId: $teamId");
-    
+    debugPrint(
+      "[SafeSeat debug] Setting up Realtime listeners for teamId: $teamId",
+    );
+
     // 1. Listen for Broadcast (New Job Offers, Accepts, and Status Updates)
     _teamChannel = supabase.channel('team_room_$teamId');
-    _teamChannel!.onBroadcast(
-      event: 'new_job_dispatched',
-      callback: (payload) {
-        debugPrint("[SafeSeat debug] Received broadcast new_job_dispatched with payload: $payload");
-        if (payload != null) {
-          _showNewJobOfferDialog(payload);
-        }
-      },
-    ).onBroadcast(
-      event: 'job_accepted',
-      callback: (payload) {
-        debugPrint("[SafeSeat debug] Received broadcast job_accepted with payload: $payload");
-        if (payload != null && mounted) {
-          _closeJobOfferDialog();
-          
-          final innerPayload = (payload.containsKey('payload') && payload['payload'] is Map)
-              ? Map<String, dynamic>.from(payload['payload'] as Map)
-              : payload;
-              
-          final reqId = innerPayload['requestid'];
-          final jobData = innerPayload['job'];
-          final isPub = innerPayload['isPubJob'] == true || (jobData != null && jobData['pub_id'] != null);
-          
-          if (jobData != null) {
-            _fetchJobOfferDetails(jobData, isPub);
-          }
-          
-          setState(() {
-            _hasActiveJob = true;
-            _activeRequestId = reqId;
-            _isPubJob = isPub;
-            _currentJobStatus = 'going to pickup';
-            
-            _pickupName = "จุดนัดหมายลูกค้า";
-            _dropoffName = "จุดหมายปลายทาง";
-            
-            if (jobData != null) {
-              _pickupLat = double.tryParse(jobData['pickuplatitude']?.toString() ?? '') ?? _currentPosition?.latitude ?? 13.7563;
-              _pickupLng = double.tryParse(jobData['pickuplongitude']?.toString() ?? '') ?? _currentPosition?.longitude ?? 100.5018;
-              _dropoffLat = double.tryParse(jobData['dropofflatitude']?.toString() ?? '') ?? (_pickupLat! - 0.02);
-              _dropoffLng = double.tryParse(jobData['dropofflongitude']?.toString() ?? '') ?? (_pickupLng! + 0.02);
+    _teamChannel!
+        .onBroadcast(
+          event: 'new_job_dispatched',
+          callback: (payload) {
+            debugPrint(
+              "[SafeSeat debug] Received broadcast new_job_dispatched with payload: $payload",
+            );
+            if (payload != null) {
+              _showNewJobOfferDialog(payload);
             }
-            
-            _isJobOfferOpen = false;
-            _updateJobMarkers();
-          });
-        }
-      },
-    ).onBroadcast(
-      event: 'job_denied',
-      callback: (payload) {
-        debugPrint("[SafeSeat debug] Received broadcast job_denied with payload: $payload");
-        if (mounted) {
-          _closeJobOfferDialog();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('มีการปฏิเสธข้อเสนองานแล้ว')),
-          );
-        }
-      },
-    ).onBroadcast(
-      event: 'job_status_updated',
-      callback: (payload) {
-        debugPrint("[SafeSeat debug] Received broadcast job_status_updated with payload: $payload");
-        if (payload != null && mounted) {
-          final innerPayload = (payload.containsKey('payload') && payload['payload'] is Map)
-              ? Map<String, dynamic>.from(payload['payload'] as Map)
-              : payload;
-              
-          final newStatus = innerPayload['status']?.toString();
-          
-          setState(() {
-            if (newStatus == 'arrived' || newStatus == 'ถึงจุดนัดหมาย') {
-              _currentJobStatus = 'arrived';
-            } else if (newStatus == 'in progress' || newStatus == 'กำลังเดินทาง') {
-              _currentJobStatus = 'in progress';
-            } else if (newStatus == 'completed' || newStatus == 'เสร็จสิ้น') {
-              _clearJobState();
-              _initLocation();
+          },
+        )
+        .onBroadcast(
+          event: 'job_accepted',
+          callback: (payload) {
+            debugPrint(
+              "[SafeSeat debug] Received broadcast job_accepted with payload: $payload",
+            );
+            if (payload != null && mounted) {
+              _closeJobOfferDialog();
+
+              final innerPayload =
+                  (payload.containsKey('payload') && payload['payload'] is Map)
+                  ? Map<String, dynamic>.from(payload['payload'] as Map)
+                  : payload;
+
+              final reqId = innerPayload['requestid'];
+              final jobData = innerPayload['job'];
+              final isPub =
+                  innerPayload['isPubJob'] == true ||
+                  (jobData != null && jobData['pub_id'] != null);
+
+              if (jobData != null) {
+                _fetchJobOfferDetails(jobData, isPub);
+              }
+
+              setState(() {
+                _hasActiveJob = true;
+                _activeRequestId = reqId;
+                _isPubJob = isPub;
+                _currentJobStatus = 'going to pickup';
+
+                _pickupName = "จุดนัดหมายลูกค้า";
+                _dropoffName = "จุดหมายปลายทาง";
+
+                if (jobData != null) {
+                  _pickupLat =
+                      double.tryParse(
+                        jobData['pickuplatitude']?.toString() ?? '',
+                      ) ??
+                      _currentPosition?.latitude ??
+                      13.7563;
+                  _pickupLng =
+                      double.tryParse(
+                        jobData['pickuplongitude']?.toString() ?? '',
+                      ) ??
+                      _currentPosition?.longitude ??
+                      100.5018;
+                  _dropoffLat =
+                      double.tryParse(
+                        jobData['dropofflatitude']?.toString() ?? '',
+                      ) ??
+                      (_pickupLat! - 0.02);
+                  _dropoffLng =
+                      double.tryParse(
+                        jobData['dropofflongitude']?.toString() ?? '',
+                      ) ??
+                      (_pickupLng! + 0.02);
+                }
+
+                _isJobOfferOpen = false;
+                _updateJobMarkers();
+              });
+            }
+          },
+        )
+        .onBroadcast(
+          event: 'job_denied',
+          callback: (payload) {
+            debugPrint(
+              "[SafeSeat debug] Received broadcast job_denied with payload: $payload",
+            );
+            if (mounted) {
+              setState(() {
+                _isJobOfferOpen = false;
+              });
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("งานนี้เดินทางเสร็จสิ้นแล้ว!")),
+                const SnackBar(content: Text('มีการปฏิเสธข้อเสนองานแล้ว')),
               );
             }
-          });
-        }
-      },
-    ).subscribe((status, [error]) {
-      debugPrint("[SafeSeat debug] Channel team_room_$teamId status: $status, error: $error");
-    });
+          },
+        )
+        .onBroadcast(
+          event: 'job_status_updated',
+          callback: (payload) {
+            debugPrint(
+              "[SafeSeat debug] Received broadcast job_status_updated with payload: $payload",
+            );
+            if (payload != null && mounted) {
+              final innerPayload =
+                  (payload.containsKey('payload') && payload['payload'] is Map)
+                  ? Map<String, dynamic>.from(payload['payload'] as Map)
+                  : payload;
+
+              final newStatus = innerPayload['status']?.toString();
+
+              setState(() {
+                if (newStatus == 'arrived' || newStatus == 'ถึงจุดนัดหมาย') {
+                  _currentJobStatus = 'arrived';
+                } else if (newStatus == 'in progress' ||
+                    newStatus == 'กำลังเดินทาง') {
+                  _currentJobStatus = 'in progress';
+                } else if (newStatus == 'completed' ||
+                    newStatus == 'เสร็จสิ้น') {
+                  _clearJobState();
+                  _initLocation();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("งานนี้เดินทางเสร็จสิ้นแล้ว!"),
+                    ),
+                  );
+                }
+              });
+            }
+          },
+        )
+        .onBroadcast(
+          event: 'buddy_location',
+          callback: (payload) {
+            if (payload != null && mounted) {
+              final innerPayload =
+                  (payload.containsKey('payload') && payload['payload'] is Map)
+                  ? Map<String, dynamic>.from(payload['payload'] as Map)
+                  : payload;
+
+              final sender = innerPayload['sender']?.toString();
+              if (sender != _currentUsername) {
+                final lat = double.tryParse(innerPayload['lat']?.toString() ?? '');
+                final lng = double.tryParse(innerPayload['lng']?.toString() ?? '');
+                final role = innerPayload['role']?.toString();
+
+                if (lat != null && lng != null) {
+                  setState(() {
+                    _buddyLat = lat;
+                    _buddyLng = lng;
+                    _buddyName = role ?? "บัดดี้ร่วมทาง";
+                  });
+                  if (!_hasActiveJob) {
+                    if (_currentPosition != null) {
+                      _addDriverMarkerAt(_currentPosition!.latitude, _currentPosition!.longitude, showSnackBar: false);
+                    }
+                  } else {
+                    _updateJobMarkers();
+                  }
+                }
+              }
+            }
+          },
+        )
+        .onBroadcast(
+          event: 'team_status_changed',
+          callback: (payload) {
+            debugPrint(
+              "[SafeSeat debug] Received broadcast team_status_changed with payload: $payload",
+            );
+            if (payload != null && mounted) {
+              final innerPayload =
+                  (payload.containsKey('payload') && payload['payload'] is Map)
+                  ? Map<String, dynamic>.from(payload['payload'] as Map)
+                  : payload;
+
+              final status = innerPayload['status']?.toString();
+              setState(() {
+                if (status == 'Ready') {
+                  isOnline = true;
+                  if (_hasActiveJob) {
+                    _clearJobState();
+                    _activeJobChannel?.unsubscribe();
+                    _activeJobChannel = null;
+                    _initLocation();
+                  }
+                } else if (status == 'Offline') {
+                  isOnline = false;
+                  if (_hasActiveJob) {
+                    _clearJobState();
+                    _activeJobChannel?.unsubscribe();
+                    _activeJobChannel = null;
+                    _initLocation();
+                  }
+                }
+              });
+            }
+          },
+        )
+        .subscribe((status, [error]) {
+          debugPrint(
+            "[SafeSeat debug] Channel team_room_$teamId status: $status, error: $error",
+          );
+        });
 
     // On initialization, fetch the current active job if the team is already busy
     _fetchActiveJobForTeam(teamId);
@@ -238,80 +424,90 @@ class _MapPageState extends State<MapPage> {
         .from('buddyteam')
         .stream(primaryKey: ['buddyteamid'])
         .eq('buddyteamid', teamId)
-        .listen((List<Map<String, dynamic>> data) {
-      if (data.isNotEmpty) {
-        final team = data.first;
-        final status = team['teamstatus']?.toString();
-        
-        if (status == 'Busy') {
-          _closeJobOfferDialog();
-          _fetchActiveJobForTeam(teamId);
-        }
-        
-        // Sync local isOnline state with DB teamstatus
-        if (mounted) {
-          setState(() {
-            if (status == 'Ready') {
-              isOnline = true;
-              if (_hasActiveJob) {
-                _clearJobState();
-                _activeJobChannel?.unsubscribe();
-                _activeJobChannel = null;
-                _initLocation();
+        .listen(
+          (List<Map<String, dynamic>> data) {
+            if (data.isNotEmpty) {
+              final team = data.first;
+              final status = team['teamstatus']?.toString();
+
+              if (status == 'Busy') {
+                _closeJobOfferDialog();
+                _fetchActiveJobForTeam(teamId);
               }
-            } else if (status == 'Offline') {
-              isOnline = false;
-              if (_hasActiveJob) {
-                _clearJobState();
-                _activeJobChannel?.unsubscribe();
-                _activeJobChannel = null;
-                _initLocation();
+
+              // Sync local isOnline state with DB teamstatus
+              if (mounted) {
+                setState(() {
+                  if (status == 'Ready') {
+                    isOnline = true;
+                    if (_hasActiveJob) {
+                      _clearJobState();
+                      _activeJobChannel?.unsubscribe();
+                      _activeJobChannel = null;
+                      _initLocation();
+                    }
+                  } else if (status == 'Offline') {
+                    isOnline = false;
+                    if (_hasActiveJob) {
+                      _clearJobState();
+                      _activeJobChannel?.unsubscribe();
+                      _activeJobChannel = null;
+                      _initLocation();
+                    }
+                  }
+                });
               }
             }
-          });
-        }
-      }
-    }, onError: (error) {
-      debugPrint("[SafeSeat debug] Realtime stream error on buddyteam: $error");
-    });
+          },
+          onError: (error) {
+            debugPrint(
+              "[SafeSeat debug] Realtime stream error on buddyteam: $error",
+            );
+          },
+        );
   }
 
   void _setupActiveJobListener(dynamic requestId, bool isPub) {
     _activeJobChannel?.unsubscribe();
-    
+
     final supabase = Supabase.instance.client;
     _activeJobChannel = supabase.channel('active_job_$requestId');
-    _activeJobChannel!.onPostgresChanges(
-      event: PostgresChangeEvent.update,
-      schema: 'public',
-      table: isPub ? 'requestbypub' : 'requestbyuser',
-      filter: PostgresChangeFilter(
-        type: PostgresChangeFilterType.eq,
-        column: 'requestid',
-        value: requestId,
-      ),
-      callback: (payload) {
-        final updatedJob = payload.newRecord;
-        if (updatedJob != null && mounted) {
-          final dbStatus = updatedJob['requeststatus']?.toString();
-          setState(() {
-            if (dbStatus == 'arrived' || dbStatus == 'ถึงจุดนัดหมาย') {
-              _currentJobStatus = 'arrived';
-            } else if (dbStatus == 'in progress' || dbStatus == 'กำลังเดินทาง') {
-              _currentJobStatus = 'in progress';
-            } else if (dbStatus == 'completed' || dbStatus == 'เสร็จสิ้น') {
-              _clearJobState();
-              _activeJobChannel?.unsubscribe();
-              _activeJobChannel = null;
-              _initLocation();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("งานนี้เดินทางเสร็จสิ้นแล้ว!")),
-              );
+    _activeJobChannel!
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: isPub ? 'requestbypub' : 'requestbyuser',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'requestid',
+            value: requestId,
+          ),
+          callback: (payload) {
+            final updatedJob = payload.newRecord;
+            if (updatedJob != null && mounted) {
+              final dbStatus = updatedJob['requeststatus']?.toString();
+              setState(() {
+                if (dbStatus == 'arrived' || dbStatus == 'ถึงจุดนัดหมาย') {
+                  _currentJobStatus = 'arrived';
+                } else if (dbStatus == 'in progress' ||
+                    dbStatus == 'กำลังเดินทาง') {
+                  _currentJobStatus = 'in progress';
+                } else if (dbStatus == 'completed' || dbStatus == 'เสร็จสิ้น') {
+                  _clearJobState();
+                  _activeJobChannel?.unsubscribe();
+                  _activeJobChannel = null;
+                  _initLocation();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("งานนี้เดินทางเสร็จสิ้นแล้ว!"),
+                    ),
+                  );
+                }
+              });
             }
-          });
-        }
-      },
-    ).subscribe();
+          },
+        )
+        .subscribe();
   }
 
   Future<void> _fetchActiveJobForTeam(int teamId) async {
@@ -339,34 +535,47 @@ class _MapPageState extends State<MapPage> {
 
       if (activeJobs != null) {
         final jobData = activeJobs;
-        
+
         await _fetchJobOfferDetails(jobData, isPub);
-        
+
         final reqId = jobData['requestid'];
         _setupActiveJobListener(reqId, isPub);
-        
+
         if (mounted) {
           setState(() {
             _hasActiveJob = true;
             _activeRequestId = reqId;
             _isPubJob = isPub;
-            
+
             final dbStatus = jobData['requeststatus']?.toString();
             if (dbStatus == 'going to pickup' || dbStatus == 'กำลังไปรับ') {
               _currentJobStatus = 'going to pickup';
             } else if (dbStatus == 'arrived' || dbStatus == 'ถึงจุดนัดหมาย') {
               _currentJobStatus = 'arrived';
-            } else if (dbStatus == 'in progress' || dbStatus == 'กำลังเดินทาง') {
+            } else if (dbStatus == 'in progress' ||
+                dbStatus == 'กำลังเดินทาง') {
               _currentJobStatus = 'in progress';
             }
-            
+
             _pickupName = "จุดนัดหมายลูกค้า";
             _dropoffName = "จุดหมายปลายทาง";
-            _pickupLat = double.tryParse(jobData['pickuplatitude']?.toString() ?? '') ?? _currentPosition?.latitude ?? 13.7563;
-            _pickupLng = double.tryParse(jobData['pickuplongitude']?.toString() ?? '') ?? _currentPosition?.longitude ?? 100.5018;
-            _dropoffLat = double.tryParse(jobData['dropofflatitude']?.toString() ?? '') ?? (_pickupLat! - 0.02);
-            _dropoffLng = double.tryParse(jobData['dropofflongitude']?.toString() ?? '') ?? (_pickupLng! + 0.02);
-            
+            _pickupLat =
+                double.tryParse(jobData['pickuplatitude']?.toString() ?? '') ??
+                _currentPosition?.latitude ??
+                13.7563;
+            _pickupLng =
+                double.tryParse(jobData['pickuplongitude']?.toString() ?? '') ??
+                _currentPosition?.longitude ??
+                100.5018;
+            _dropoffLat =
+                double.tryParse(jobData['dropofflatitude']?.toString() ?? '') ??
+                (_pickupLat! - 0.02);
+            _dropoffLng =
+                double.tryParse(
+                  jobData['dropofflongitude']?.toString() ?? '',
+                ) ??
+                (_pickupLng! + 0.02);
+
             _isJobOfferOpen = false;
             _updateJobMarkers();
           });
@@ -393,16 +602,35 @@ class _MapPageState extends State<MapPage> {
     _dropoffLng = null;
     _pickupName = null;
     _dropoffName = null;
+    _jobDuration = null;
     _polylines = [];
     if (_currentPosition != null) {
       _markers = [
         Marker(
-          point: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-          width: 80,
-          height: 80,
-          child: Transform.rotate(
-            angle: 0.785398,
-            child: const Icon(Icons.navigation, color: Colors.blue, size: 40),
+          point: LatLng(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+          ),
+          width: 56,
+          height: 56,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+              border: Border.all(color: const Color(0xFF2563EB), width: 3),
+            ),
+            child: const Icon(
+              Icons.directions_car_filled_rounded,
+              color: Color(0xFF2563EB),
+              size: 30,
+            ),
           ),
         ),
       ];
@@ -416,7 +644,9 @@ class _MapPageState extends State<MapPage> {
     _positionStreamSubscription?.cancel();
 
     // 1. Timer สำหรับตรวจสอบ leader status และ sync พิกัดสำรองทุกๆ 10 วินาที
-    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
+    _locationUpdateTimer = Timer.periodic(const Duration(seconds: 10), (
+      timer,
+    ) async {
       if (_buddyTeamId == null) {
         await _checkLeaderStatus();
       }
@@ -425,42 +655,70 @@ class _MapPageState extends State<MapPage> {
     // 2. Real-time Location Stream ดักจับการเคลื่อนที่และการเปลี่ยนพิกัดทันที (รวมถึง Emulator)
     const LocationSettings locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 0, // รับทุกการขยับแม้ 0 เมตร (ดีมากสำหรับการทดสอบบน Emulator)
+      distanceFilter:
+          0, // รับทุกการขยับแม้ 0 เมตร (ดีมากสำหรับการทดสอบบน Emulator)
     );
 
-    _positionStreamSubscription = Geolocator.getPositionStream(locationSettings: locationSettings)
-        .listen((Position position) async {
-      if (!mounted) return;
+    _positionStreamSubscription =
+        Geolocator.getPositionStream(locationSettings: locationSettings).listen(
+          (Position position) async {
+            if (!mounted) return;
 
-      setState(() {
-        _currentPosition = position;
-        _currentAddress = "พิกัด: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}";
-      });
+            setState(() {
+              _currentPosition = position;
+              _currentAddress =
+                  "พิกัด: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}";
+            });
 
-      // ถ้าไม่มีงานค้าง ให้ขยับ Driver Marker บนแผนที่ตามพิกัดสด
-      if (!_hasActiveJob) {
-        _addDriverMarkerAt(position.latitude, position.longitude, showSnackBar: false);
-      } else {
-        _updateJobMarkers();
-      }
+            // ถ้าไม่มีงานค้าง ให้ขยับ Driver Marker บนแผนที่ตามพิกัดสด
+            if (!_hasActiveJob) {
+              _addDriverMarkerAt(
+                position.latitude,
+                position.longitude,
+                showSnackBar: false,
+              );
+            } else {
+              _updateJobMarkers();
+            }
 
-      // ส่งพิกัดขึ้น Supabase ทันทีเมื่อเป็น Leader และมี buddyTeamId
-      if (_isLeader && _buddyTeamId != null) {
-        try {
-          await Supabase.instance.client
-              .from('buddyteam')
-              .update({
-                'currentloclat': position.latitude,
-                'currentloclng': position.longitude,
-              })
-              .eq('buddyteamid', _buddyTeamId!);
-        } catch (e) {
-          debugPrint("Failed to update real-time team location to Supabase: $e");
-        }
-      }
-    }, onError: (e) {
-      debugPrint("Error in location stream: $e");
-    });
+            // Broadcast พิกัดสดของตัวเองให้บัดดี้ (Leader <-> Follower) ทันที
+            if (_teamChannel != null) {
+              try {
+                _teamChannel!.sendBroadcastMessage(
+                  event: 'buddy_location',
+                  payload: {
+                    'sender': _currentUsername ?? '',
+                    'lat': position.latitude,
+                    'lng': position.longitude,
+                    'role': _isLeader ? 'Leader' : 'Follower',
+                  },
+                );
+              } catch (e) {
+                debugPrint("Failed to broadcast buddy live location: $e");
+              }
+            }
+
+            // ส่งพิกัดขึ้น Supabase ทันทีเมื่อเป็น Leader และมี buddyTeamId
+            if (_isLeader && _buddyTeamId != null) {
+              try {
+                await Supabase.instance.client
+                    .from('buddyteam')
+                    .update({
+                      'currentloclat': position.latitude,
+                      'currentloclng': position.longitude,
+                    })
+                    .eq('buddyteamid', _buddyTeamId!);
+              } catch (e) {
+                debugPrint(
+                  "Failed to update real-time team location to Supabase: $e",
+                );
+              }
+            }
+          },
+          onError: (e) {
+            debugPrint("Error in location stream: $e");
+          },
+        );
   }
 
   Future<void> _forceUpdateLocation() async {
@@ -475,10 +733,15 @@ class _MapPageState extends State<MapPage> {
       if (mounted) {
         setState(() {
           _currentPosition = position;
-          _currentAddress = "พิกัด: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}";
+          _currentAddress =
+              "พิกัด: ${position.latitude.toStringAsFixed(5)}, ${position.longitude.toStringAsFixed(5)}";
         });
         _moveToCoordinates(position.latitude, position.longitude, zoom: 15);
-        _addDriverMarkerAt(position.latitude, position.longitude, showSnackBar: false);
+        _addDriverMarkerAt(
+          position.latitude,
+          position.longitude,
+          showSnackBar: false,
+        );
       }
 
       if (_isLeader && _buddyTeamId != null) {
@@ -496,24 +759,67 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
-  Future<void> _fetchJobOfferDetails(Map<String, dynamic> payload, bool isPub) async {
+  /// ตรวจสอบว่าคนขับมีทักษะตรงกับประเภทรถที่ต้องการหรือไม่
+  /// คืนค่า true = ทักษะตรง สามารถรับงานได้
+  /// คืนค่า false = ทักษะไม่ตรง ห้ามแสดง popup
+  bool _hasSkillForCarType(int? reqType) {
+    // ถ้าไม่มี requiredcartype หรือเป็นค่าที่ไม่รู้จัก ถือว่ารับได้ (Auto default)
+    if (reqType == null || reqType == 3) {
+      // Auto (3) = ทุกคนรับได้
+      return true;
+    }
+
+    // ถ้าไม่มีข้อมูลสกิล ถือว่าขับได้แค่ Auto เท่านั้น
+    if (_mySkills.isEmpty) {
+      debugPrint("[SafeSeat Client] No skills data, defaulting to Auto-only driver");
+      return false; // ไม่มีสกิล = ขับ EV/Manual ไม่ได้
+    }
+
+    final skillsText = _mySkills.map((s) => s.toString().toLowerCase()).join(' ');
+
+    if (reqType == 1) {
+      // EV - ต้องมีสกิล EV
+      return skillsText.contains('ev') || skillsText.contains('electric') || skillsText.contains('ไฟฟ้า');
+    } else if (reqType == 2) {
+      // Manual - ต้องมีสกิล Manual
+      return skillsText.contains('manual') || skillsText.contains('ธรรมดา') || skillsText.contains('กระปุก');
+    }
+
+    return true;
+  }
+
+  /// แปลง requiredcartype จาก payload (อาจเป็น int, String, หรือ null) เป็น int?
+  int? _parseCarType(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    return int.tryParse(value.toString());
+  }
+
+  Future<void> _fetchJobOfferDetails(
+    Map<String, dynamic> payload,
+    bool isPub,
+  ) async {
     try {
       final supabase = Supabase.instance.client;
-      
+
       if (isPub) {
+        final note = payload['note']?.toString() ?? '';
+
         setState(() {
           _clientName = payload['custname']?.toString() ?? 'ลูกค้าทั่วไป';
           _clientProfileImage = null;
           _clientPhone = payload['phoneno']?.toString() ?? '';
-          _isLadyMode = payload['isladymode'] == true || payload['isladymode']?.toString() == 'true';
+          _isLadyMode =
+              payload['isladymode'] == true ||
+              payload['isladymode']?.toString() == 'true';
 
-          final note = payload['note']?.toString() ?? '';
-          
           // ดึงข้อมูลรุ่นรถและทะเบียนจาก note หากมีรูปแบบ [รุ่นรถ: ... | ทะเบียน: ...]
           String parsedCarInfo = "";
           String customNote = note;
           if (note.contains('[รุ่นรถ:') && note.contains(']')) {
-            final match = RegExp(r'\[รุ่นรถ:\s*(.*?)\s*\|\s*ทะเบียน:\s*(.*?)\]').firstMatch(note);
+            final match = RegExp(
+              r'\[รุ่นรถ:\s*(.*?)\s*\|\s*ทะเบียน:\s*(.*?)\]',
+            ).firstMatch(note);
             if (match != null) {
               final carModel = match.group(1) ?? '';
               final carPlate = match.group(2) ?? '';
@@ -525,48 +831,66 @@ class _MapPageState extends State<MapPage> {
           final carType = payload['requiredcartype']?.toString() ?? '';
           if (parsedCarInfo.isNotEmpty) {
             _carDetails = parsedCarInfo;
+          } else if (carType == '1') {
+            _carDetails = "รถยนต์ไฟฟ้า (EV)";
           } else if (carType == '2') {
-            _carDetails = "SUV / รถขนาดใหญ่";
+            _carDetails = "รถยนต์เกียร์ธรรมดา (Manual)";
           } else {
-            _carDetails = "Sedan / รถเก๋ง";
+            _carDetails = "รถยนต์เกียร์ออโต้ (Auto)";
           }
 
           final phoneEmer = payload['phoneemer']?.toString() ?? '';
-          _carSubdetails = customNote.isNotEmpty 
-              ? "หมายเหตุ: $customNote" 
+          _carSubdetails = customNote.isNotEmpty
+              ? "หมายเหตุ: $customNote"
               : "เบอร์ติดต่อฉุกเฉิน: ${phoneEmer.isNotEmpty ? phoneEmer : 'ไม่มี'}";
 
           final fee = payload['requestfee'];
           if (fee != null) {
             final feeDouble = double.tryParse(fee.toString());
-            _jobFee = feeDouble != null ? "${feeDouble.toStringAsFixed(2)} บาท" : "${fee.toString()} บาท";
+            _jobFee = feeDouble != null
+                ? "${feeDouble.toStringAsFixed(2)} บาท"
+                : "${fee.toString()} บาท";
           } else {
             _jobFee = "0.00 บาท";
           }
 
           final payMethod = payload['paymentmethod'];
-          if (payMethod == 2 || payMethod.toString().toLowerCase().contains('wallet')) {
+          if (payMethod == 2 ||
+              payMethod.toString().toLowerCase().contains('wallet')) {
             _paymentMethod = "App Wallet";
           } else {
             _paymentMethod = "เงินสด (Cash)";
           }
+        });
 
-          if (note.toLowerCase().contains('auto')) {
-            _gearType = "Auto Gear";
-          } else if (note.toLowerCase().contains('manual') || note.toLowerCase().contains('ธรรมดา')) {
-            _gearType = "Manual Gear";
-          } else {
-            _gearType = "Auto / Manual Gear";
-          }
-          
-          final dist = payload['reqdistance'];
-          if (dist != null) {
-            final distDouble = double.tryParse(dist.toString());
-            _jobDistance = distDouble != null ? "${distDouble.toStringAsFixed(2)} km" : "${dist.toString()} km";
-          } else {
-            _jobDistance = "0.0 km";
-          }
+        // ตรวจสอบระบบเกียร์และทักษะของคนขับก่อนเปิด Popup เสมอ
+        final requiredCarType = payload['requiredcartype'];
+        String currentGearType = "Auto Gear";
+        if (requiredCarType == 1 || note.toLowerCase().contains('ev') || note.toLowerCase().contains('electric') || note.contains('ไฟฟ้า')) {
+          currentGearType = "รถยนต์ไฟฟ้า (EV)";
+        } else if (requiredCarType == 2 || note.toLowerCase().contains('manual') || note.toLowerCase().contains('ธรรมดา')) {
+          currentGearType = "Manual Gear";
+        } else if (requiredCarType == 3 || note.toLowerCase().contains('auto') || note.toLowerCase().contains('ออโต้')) {
+          currentGearType = "Auto Gear";
+        }
 
+        // ตรวจสอบทักษะคนขับ — ถ้าไม่ตรงกับประเภทรถ ไม่แสดง popup
+        final parsedReqType = _parseCarType(requiredCarType);
+        if (!_hasSkillForCarType(parsedReqType)) {
+          debugPrint("[SafeSeat Client] Suppressed Pub job dialog: skill mismatch (reqType=$parsedReqType, skills=$_mySkills)");
+          return;
+        }
+
+        final dist = payload['reqdistance'];
+        String jobDist = "0.0 km";
+        if (dist != null) {
+          final distDouble = double.tryParse(dist.toString());
+          jobDist = distDouble != null ? "${distDouble.toStringAsFixed(2)} km" : "${dist.toString()} km";
+        }
+
+        setState(() {
+          _gearType = currentGearType;
+          _jobDistance = jobDist;
           _activeRequestId = payload['requestid'];
           _isJobOfferOpen = true;
         });
@@ -587,32 +911,59 @@ class _MapPageState extends State<MapPage> {
         userData = userRes;
       }
 
-      // 2. ดึงข้อมูลรถยนต์ (usercar)
+      // 2. ดึงข้อมูลรถยนต์ (usercar) พร้อมประเภทรถ cartype
       Map<String, dynamic>? carData;
       if (userCarId != null) {
         final carRes = await supabase
             .from('usercar')
-            .select('carbrand, carcolor, carmodel, carplate')
+            .select('carbrand, carcolor, carmodel, carplate, car_type, cartype:car_type(cartypename)')
             .eq('usercarid', userCarId)
             .maybeSingle();
         carData = carRes;
+      }
+
+      // ตรวจสอบระบบเกียร์ / ประเภทรถ และกรองทักษะคนขับก่อน setState
+      final note = payload['note']?.toString() ?? '';
+      final requiredCarType = payload['requiredcartype'] ?? carData?['car_type'];
+      final cartypeName = carData?['cartype']?['cartypename']?.toString() ?? '';
+
+      String calculatedGearType = "Auto Gear";
+      if (requiredCarType == 1 || cartypeName.toLowerCase() == 'ev' || note.toLowerCase().contains('ev') || note.toLowerCase().contains('electric') || note.contains('ไฟฟ้า')) {
+        calculatedGearType = "รถยนต์ไฟฟ้า (EV)";
+      } else if (requiredCarType == 2 || cartypeName.toLowerCase() == 'manual' || note.toLowerCase().contains('manual') || note.toLowerCase().contains('ธรรมดา')) {
+        calculatedGearType = "Manual Gear";
+      } else if (requiredCarType == 3 || cartypeName.toLowerCase() == 'auto' || note.toLowerCase().contains('auto') || note.toLowerCase().contains('ออโต้')) {
+        calculatedGearType = "Auto Gear";
+      } else {
+        calculatedGearType = "Auto / Manual / EV";
+      }
+
+      // ตรวจสอบทักษะคนขับ — ถ้าไม่ตรงกับประเภทรถ ไม่แสดง popup
+      final parsedUserReqType = _parseCarType(requiredCarType);
+      if (!_hasSkillForCarType(parsedUserReqType)) {
+        debugPrint("[SafeSeat Client] Suppressed User job dialog: skill mismatch (reqType=$parsedUserReqType, skills=$_mySkills)");
+        return;
       }
 
       setState(() {
         _clientName = userData?['name']?.toString() ?? 'ลูกค้าทั่วไป';
         _clientProfileImage = userData?['profileimagepath']?.toString();
         _clientPhone = userData?['phoneno']?.toString() ?? userId;
-        _isLadyMode = payload['isladymode'] == true || payload['isladymode']?.toString() == 'true';
+        _isLadyMode =
+            payload['isladymode'] == true ||
+            payload['isladymode']?.toString() == 'true';
 
         if (carData != null) {
           final brand = carData['carbrand']?.toString() ?? '';
           final model = carData['carmodel']?.toString() ?? '';
           _carDetails = "$brand $model".trim();
           if (_carDetails!.isEmpty) _carDetails = "รถยนต์ส่วนบุคคล";
-          
+
           final color = carData['carcolor']?.toString() ?? '';
           final plate = carData['carplate']?.toString() ?? '';
-          _carSubdetails = "${color.isNotEmpty ? 'สี$color' : ''} ทะเบียน ${plate.isNotEmpty ? plate : 'ไม่ระบุ'}".trim();
+          _carSubdetails =
+              "${color.isNotEmpty ? 'สี$color' : ''} ทะเบียน ${plate.isNotEmpty ? plate : 'ไม่ระบุ'}"
+                  .trim();
         } else {
           _carDetails = "รถยนต์ส่วนบุคคล";
           _carSubdetails = "ไม่ทราบรายละเอียดรถ";
@@ -621,32 +972,29 @@ class _MapPageState extends State<MapPage> {
         final fee = payload['requestfee'];
         if (fee != null) {
           final feeDouble = double.tryParse(fee.toString());
-          _jobFee = feeDouble != null ? "${feeDouble.toStringAsFixed(2)} บาท" : "${fee.toString()} บาท";
+          _jobFee = feeDouble != null
+              ? "${feeDouble.toStringAsFixed(2)} บาท"
+              : "${fee.toString()} บาท";
         } else {
           _jobFee = "0.00 บาท";
         }
 
         final payMethod = payload['paymentmethod'];
-        if (payMethod == 2 || payMethod.toString().toLowerCase().contains('wallet')) {
+        if (payMethod == 2 ||
+            payMethod.toString().toLowerCase().contains('wallet')) {
           _paymentMethod = "App Wallet";
         } else {
           _paymentMethod = "เงินสด (Cash)";
         }
 
-        // ระบบเกียร์
-        final note = payload['note']?.toString() ?? '';
-        if (note.toLowerCase().contains('auto')) {
-          _gearType = "Auto Gear";
-        } else if (note.toLowerCase().contains('manual') || note.toLowerCase().contains('ธรรมดา')) {
-          _gearType = "Manual Gear";
-        } else {
-          _gearType = "Manual Gear"; // ค่าเริ่มต้นตามแบบร่าง
-        }
+        _gearType = calculatedGearType;
 
         final dist = payload['reqdistance'];
         if (dist != null) {
           final distDouble = double.tryParse(dist.toString());
-          _jobDistance = distDouble != null ? "${distDouble.toStringAsFixed(2)} km" : "${dist.toString()} km";
+          _jobDistance = distDouble != null
+              ? "${distDouble.toStringAsFixed(2)} km"
+              : "${dist.toString()} km";
         } else {
           _jobDistance = "0.0 km";
         }
@@ -656,34 +1004,6 @@ class _MapPageState extends State<MapPage> {
       });
     } catch (e) {
       debugPrint("Error fetching job offer details: $e");
-      setState(() {
-        _clientName = "ลูกค้าทั่วไป";
-        _clientPhone = payload['user_id']?.toString();
-        _carDetails = "รถยนต์ส่วนบุคคล";
-        _carSubdetails = "ไม่ทราบรายละเอียดรถ";
-        
-        final fee = payload['requestfee'];
-        if (fee != null) {
-          final feeDouble = double.tryParse(fee.toString());
-          _jobFee = feeDouble != null ? "${feeDouble.toStringAsFixed(2)} บาท" : "${fee.toString()} บาท";
-        } else {
-          _jobFee = "0.00 บาท";
-        }
-        
-        _paymentMethod = "App Wallet";
-        _gearType = "Manual Gear";
-        
-        final dist = payload['reqdistance'];
-        if (dist != null) {
-          final distDouble = double.tryParse(dist.toString());
-          _jobDistance = distDouble != null ? "${distDouble.toStringAsFixed(2)} km" : "${dist.toString()} km";
-        } else {
-          _jobDistance = "0.0 km";
-        }
-        
-        _activeRequestId = payload['requestid'];
-        _isJobOfferOpen = true;
-      });
     }
   }
 
@@ -701,7 +1021,15 @@ class _MapPageState extends State<MapPage> {
     }
     debugPrint("[SafeSeat debug] actualPayload extracted: $actualPayload");
 
-    final isPub = actualPayload['isPubJob'] == true || actualPayload['pub_id'] != null;
+    // ตรวจสอบทักษะคนขับก่อนแสดง popup — ถ้าไม่ตรงกับประเภทรถ ไม่แสดง
+    final reqType = _parseCarType(actualPayload['requiredcartype']);
+    if (!_hasSkillForCarType(reqType)) {
+      debugPrint("[SafeSeat Client] Ignored job offer: skill mismatch (reqType=$reqType, skills=$_mySkills)");
+      return;
+    }
+
+    final isPub =
+        actualPayload['isPubJob'] == true || actualPayload['pub_id'] != null;
     setState(() {
       _isPubJob = isPub;
     });
@@ -715,7 +1043,9 @@ class _MapPageState extends State<MapPage> {
         _isJobOfferOpen = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("บัดดี้ของคุณรับงานนี้แล้ว กำลังเข้าสู่โหมดนำทาง")),
+        const SnackBar(
+          content: Text("บัดดี้ของคุณรับงานนี้แล้ว กำลังเข้าสู่โหมดนำทาง"),
+        ),
       );
     }
   }
@@ -747,38 +1077,60 @@ class _MapPageState extends State<MapPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("ส่งสัญญาณทดสอบรับงาน Lady Mode ไปยังทุกคนในทีมเรียบร้อยแล้ว"),
+        content: Text(
+          "ส่งสัญญาณทดสอบรับงาน Lady Mode ไปยังทุกคนในทีมเรียบร้อยแล้ว",
+        ),
         backgroundColor: Color(0xFFFF1493),
         duration: Duration(seconds: 2),
       ),
     );
   }
 
-
-  Future<List<LatLng>> _getOSRMRoute(LatLng start, LatLng end) async {
+  Future<Map<String, dynamic>> _getOSRMRouteWithInfo(
+    LatLng start,
+    LatLng end,
+  ) async {
     try {
-      final url = "https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson";
+      final url =
+          "https://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson";
       final dio = Dio();
       final response = await dio.get(url);
       if (response.statusCode == 200) {
         final data = response.data;
         if (data['routes'] != null && data['routes'].isNotEmpty) {
-          final geometry = data['routes'][0]['geometry'];
+          final route = data['routes'][0];
+          final geometry = route['geometry'];
+          final double distanceMeters =
+              (route['distance'] as num?)?.toDouble() ?? 0.0;
+          final double durationSeconds =
+              (route['duration'] as num?)?.toDouble() ?? 0.0;
+
+          List<LatLng> points = [];
           if (geometry != null && geometry['coordinates'] != null) {
             final coords = geometry['coordinates'] as List;
-            return coords.map((c) {
+            points = coords.map((c) {
               final lng = (c[0] as num).toDouble();
               final lat = (c[1] as num).toDouble();
               return LatLng(lat, lng);
             }).toList();
           }
+
+          return {
+            'points': points,
+            'distanceKm': distanceMeters / 1000.0,
+            'durationMin': (durationSeconds / 60.0).ceil(),
+          };
         }
       }
     } catch (e) {
       debugPrint("[SafeSeat OSRM] Error fetching route: $e");
     }
     // Fallback to straight line if OSRM fails
-    return [start, end];
+    return {
+      'points': [start, end],
+      'distanceKm': null,
+      'durationMin': null,
+    };
   }
 
   Future<void> _updateJobMarkers() async {
@@ -786,21 +1138,95 @@ class _MapPageState extends State<MapPage> {
       if (mounted) {
         setState(() {
           _polylines = [];
+          List<Marker> idleMarkers = [];
           if (_currentPosition != null) {
-            _markers = [
+            idleMarkers.add(
               Marker(
-                point: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-                width: 80,
-                height: 80,
-                child: Transform.rotate(
-                  angle: 0.785398,
-                  child: const Icon(Icons.navigation, color: Colors.blue, size: 40),
+                point: LatLng(
+                  _currentPosition!.latitude,
+                  _currentPosition!.longitude,
+                ),
+                width: 56,
+                height: 56,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                    border: Border.all(
+                      color: const Color(0xFF2563EB),
+                      width: 3,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.directions_car_filled_rounded,
+                    color: Color(0xFF2563EB),
+                    size: 30,
+                  ),
                 ),
               ),
-            ];
-          } else {
-            _markers = [];
+            );
           }
+
+          // Buddy Marker (รถคันที่ 2: Follower / Leader - แสดงเฉพาะเมื่อมีทีมบัดดี้แล้ว)
+          if (_buddyTeamId != null && _buddyLat != null && _buddyLng != null) {
+            final isBuddyLeader = _buddyName?.toLowerCase().contains('leader') ?? false;
+            final buddyColor = isBuddyLeader ? const Color(0xFFD97706) : const Color(0xFF10B981);
+
+            idleMarkers.add(
+              Marker(
+                point: LatLng(_buddyLat!, _buddyLng!),
+                width: 60,
+                height: 60,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: buddyColor,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _buddyName ?? "Buddy",
+                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: buddyColor.withOpacity(0.4),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                        border: Border.all(color: buddyColor, width: 2.5),
+                      ),
+                      child: Icon(
+                        Icons.directions_car_filled_rounded,
+                        color: buddyColor,
+                        size: 22,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          _markers = idleMarkers;
         });
       }
       return;
@@ -808,101 +1234,239 @@ class _MapPageState extends State<MapPage> {
 
     List<Marker> jobMarkers = [];
     List<Polyline> jobPolylines = [];
-    
-    // 1. Driver Marker
+
+    // 1. Driver Marker (ตำแหน่งคนขับของเครื่องนี้ - สีน้ำเงินแบรนด์คงที่ #2563EB)
     if (_currentPosition != null) {
       jobMarkers.add(
         Marker(
-          point: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-          width: 80,
-          height: 80,
-          child: Transform.rotate(
-            angle: 0.785398,
-            child: const Icon(Icons.navigation, color: Colors.blue, size: 40),
+          point: LatLng(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+          ),
+          width: 56,
+          height: 56,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+              border: Border.all(color: const Color(0xFF2563EB), width: 3),
+            ),
+            child: const Icon(
+              Icons.directions_car_filled_rounded,
+              color: Color(0xFF2563EB),
+              size: 30,
+            ),
           ),
         ),
       );
     }
-    
-    // 2. Pickup Marker
+
+    // 1.1 Buddy Marker (รถคันที่ 2 ของบัดดี้ร่วมทีม - แสดงเฉพาะเมื่อมีทีม)
+    if (_buddyTeamId != null && _buddyLat != null && _buddyLng != null) {
+      final isBuddyLeader = _buddyName?.toLowerCase().contains('leader') ?? false;
+      final buddyColor = isBuddyLeader ? const Color(0xFFD97706) : const Color(0xFF10B981);
+
+      jobMarkers.add(
+        Marker(
+          point: LatLng(_buddyLat!, _buddyLng!),
+          width: 60,
+          height: 60,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: buddyColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _buddyName ?? "Buddy",
+                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: buddyColor.withOpacity(0.4),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                  border: Border.all(color: buddyColor, width: 2.5),
+                ),
+                child: Icon(
+                  Icons.directions_car_filled_rounded,
+                  color: buddyColor,
+                  size: 22,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // 2. Pickup Marker (จุดรับ 🟠 #F97316 Amber/Orange)
     if (_pickupLat != null && _pickupLng != null) {
       jobMarkers.add(
         Marker(
           point: LatLng(_pickupLat!, _pickupLng!),
-          width: 80,
-          height: 80,
-          child: const Icon(Icons.location_on, color: Colors.green, size: 48),
+          width: 56,
+          height: 56,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF97316), // จุดรับสีส้ม #F97316
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFF97316).withOpacity(0.4),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+              border: Border.all(color: Colors.white, width: 3),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.sports_bar_rounded,
+              color: Colors.white,
+              size: 30,
+            ),
+          ),
         ),
       );
     }
-    
-    // 3. Dropoff Marker
+
+    // 3. Dropoff Marker (จุดส่ง 🟢 #10B981)
     if (_dropoffLat != null && _dropoffLng != null) {
       jobMarkers.add(
         Marker(
           point: LatLng(_dropoffLat!, _dropoffLng!),
-          width: 80,
-          height: 80,
-          child: const Icon(Icons.location_on, color: Colors.red, size: 48),
+          width: 56,
+          height: 56,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF10B981), // จุดส่ง #10B981
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF10B981).withOpacity(0.4),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+              border: Border.all(color: Colors.white, width: 3),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.home_rounded,
+              color: Colors.white,
+              size: 32,
+            ),
+          ),
         ),
       );
     }
-    
+
     setState(() {
       _markers = jobMarkers;
     });
 
-    // Move map camera to show pickup point
-    if (_pickupLat != null && _pickupLng != null) {
-      _moveToCoordinates(_pickupLat!, _pickupLng!, zoom: 14);
-    }
+    // (Do not force move camera every location tick so user can freely pan/zoom map)
 
     // Generate route line (polylines) using OSRM
     List<LatLng> driverToPickup = [];
+    int? driverToPickupMin;
+    double? driverToPickupKm;
     if (_currentPosition != null && _pickupLat != null && _pickupLng != null) {
-      driverToPickup = await _getOSRMRoute(
+      final info = await _getOSRMRouteWithInfo(
         LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
         LatLng(_pickupLat!, _pickupLng!),
       );
+      driverToPickup = (info['points'] as List<LatLng>?) ?? [];
+      driverToPickupKm = info['distanceKm'] as double?;
+      driverToPickupMin = info['durationMin'] as int?;
     }
-    
+
     List<LatLng> pickupToDropoff = [];
-    if (_pickupLat != null && _pickupLng != null && _dropoffLat != null && _dropoffLng != null) {
-      pickupToDropoff = await _getOSRMRoute(
+    int? pickupToDropoffMin;
+    double? pickupToDropoffKm;
+    if (_pickupLat != null &&
+        _pickupLng != null &&
+        _dropoffLat != null &&
+        _dropoffLng != null) {
+      final info = await _getOSRMRouteWithInfo(
         LatLng(_pickupLat!, _pickupLng!),
         LatLng(_dropoffLat!, _dropoffLng!),
       );
+      pickupToDropoff = (info['points'] as List<LatLng>?) ?? [];
+      pickupToDropoffKm = info['distanceKm'] as double?;
+      pickupToDropoffMin = info['durationMin'] as int?;
     }
 
     if (driverToPickup.isNotEmpty) {
       jobPolylines.add(
         Polyline(
           points: driverToPickup,
-          color: const Color(0xFF3B82F6), // Material Blue
-          strokeWidth: 4.5,
+          color: const Color(0xFF2563EB), // #2563EB Accent Blue
+          strokeWidth: 5.0,
         ),
       );
     }
-    
+
     if (pickupToDropoff.isNotEmpty) {
       jobPolylines.add(
         Polyline(
           points: pickupToDropoff,
-          color: const Color(0xFF10B981), // Emerald Green
-          strokeWidth: 4.5,
+          color: const Color(0xFF2340A7), // #2340A7 Primary Brand Polyline
+          strokeWidth: 5.0,
         ),
       );
     }
-    
+
     if (mounted && _hasActiveJob) {
       setState(() {
         _polylines = jobPolylines;
+
+        // คำนวณระยะทางและเวลาตามสถานะปัจจุบัน
+        if (_currentJobStatus == 'going to pickup') {
+          if (driverToPickupKm != null) {
+            _jobDistance = "${driverToPickupKm.toStringAsFixed(2)} km";
+          }
+          if (driverToPickupMin != null) {
+            _jobDuration = "$driverToPickupMin Min";
+          }
+        } else {
+          // ช่วงกำลังเดินทางไปส่งลูกค้า
+          if (pickupToDropoffKm != null) {
+            _jobDistance = "${pickupToDropoffKm.toStringAsFixed(2)} km";
+          }
+          if (pickupToDropoffMin != null) {
+            _jobDuration = "$pickupToDropoffMin Min";
+          }
+        }
       });
     }
   }
 
   Future<void> _acceptTeamJob(dynamic requestId) async {
-    debugPrint("[SafeSeat debug] _acceptTeamJob called with requestId: $requestId, _buddyTeamId: $_buddyTeamId");
+    debugPrint(
+      "[SafeSeat debug] _acceptTeamJob called with requestId: $requestId, _buddyTeamId: $_buddyTeamId",
+    );
     // หากเป็นงานจำลอง (999) ให้เปิดหน้างานจำลองทันทีโดยไม่ต้องส่งไปหลังบ้าน
     if (requestId == 999) {
       if (mounted) {
@@ -942,9 +1506,9 @@ class _MapPageState extends State<MapPage> {
           },
         );
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('รับงานจำลองสำเร็จ!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('รับงานจำลองสำเร็จ!')));
       }
       return;
     }
@@ -954,50 +1518,75 @@ class _MapPageState extends State<MapPage> {
         debugPrint("[SafeSeat debug] _buddyTeamId is null! Cannot accept job.");
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('รับงานล้มเหลว: ไม่พบข้อมูลทีมคนขับในเครื่อง (buddyTeamId is null)')),
+            const SnackBar(
+              content: Text(
+                'รับงานล้มเหลว: ไม่พบข้อมูลทีมคนขับในเครื่อง (buddyTeamId is null)',
+              ),
+            ),
           );
         }
         return;
       }
-      
-      final response = await ApiService.post('/buddy-team/accept-job', data: {
-        'request_id': requestId,
-        'buddy_team_id': _buddyTeamId,
-        'is_pub_job': _isPubJob,
-      });
-      
+
+      final response = await ApiService.post(
+        '/buddy-team/accept-job',
+        data: {
+          'request_id': requestId,
+          'buddy_team_id': _buddyTeamId,
+          'is_pub_job': _isPubJob,
+        },
+      );
+
       if (response.statusCode == 200 && response.data['success'] == true) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(response.data['message'] ?? 'รับงานสำเร็จ')),
           );
-          
+
           final jobData = response.data['job'];
-          
+
           setState(() {
             _hasActiveJob = true;
             _activeRequestId = requestId;
             _currentJobStatus = 'going to pickup';
-            
+
             _pickupName = "จุดนัดหมายลูกค้า";
             _dropoffName = "จุดหมายปลายทาง";
-            
+
             if (jobData != null) {
-              _pickupLat = double.tryParse(jobData['pickuplatitude']?.toString() ?? '') ?? _currentPosition?.latitude ?? 13.7563;
-              _pickupLng = double.tryParse(jobData['pickuplongitude']?.toString() ?? '') ?? _currentPosition?.longitude ?? 100.5018;
-              _dropoffLat = double.tryParse(jobData['dropofflatitude']?.toString() ?? '') ?? (_pickupLat! - 0.02);
-              _dropoffLng = double.tryParse(jobData['dropofflongitude']?.toString() ?? '') ?? (_pickupLng! + 0.02);
+              _pickupLat =
+                  double.tryParse(
+                    jobData['pickuplatitude']?.toString() ?? '',
+                  ) ??
+                  _currentPosition?.latitude ??
+                  13.7563;
+              _pickupLng =
+                  double.tryParse(
+                    jobData['pickuplongitude']?.toString() ?? '',
+                  ) ??
+                  _currentPosition?.longitude ??
+                  100.5018;
+              _dropoffLat =
+                  double.tryParse(
+                    jobData['dropofflatitude']?.toString() ?? '',
+                  ) ??
+                  (_pickupLat! - 0.02);
+              _dropoffLng =
+                  double.tryParse(
+                    jobData['dropofflongitude']?.toString() ?? '',
+                  ) ??
+                  (_pickupLng! + 0.02);
             } else {
               _pickupLat = _currentPosition?.latitude ?? 13.7563;
               _pickupLng = _currentPosition?.longitude ?? 100.5018;
               _dropoffLat = (_currentPosition?.latitude ?? 13.7563) - 0.02;
               _dropoffLng = (_currentPosition?.longitude ?? 100.5018) + 0.02;
             }
-            
+
             _setupActiveJobListener(requestId, _isPubJob);
             _updateJobMarkers();
           });
-          
+
           // Broadcast to buddy that job has been accepted
           _teamChannel?.send(
             type: RealtimeListenTypes.broadcast,
@@ -1012,19 +1601,25 @@ class _MapPageState extends State<MapPage> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(response.data['message'] ?? 'รับงานไม่สำเร็จ (อาจมีคนรับไปแล้ว)')),
+            SnackBar(
+              content: Text(
+                response.data['message'] ??
+                    'รับงานไม่สำเร็จ (อาจมีคนรับไปแล้ว)',
+              ),
+            ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์')),
+          const SnackBar(
+            content: Text('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์'),
+          ),
         );
       }
     }
   }
-
 
   Future<void> _initLocation() async {
     try {
@@ -1044,8 +1639,8 @@ class _MapPageState extends State<MapPage> {
         permission = await Geolocator.requestPermission();
       }
 
-      if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
-
+      if (permission == LocationPermission.whileInUse ||
+          permission == LocationPermission.always) {
         // ดึงตำแหน่งสดของเครื่องโดยตรง (ไม่ใช้แคชเก่า getLastKnownPosition)
         Position position;
         try {
@@ -1056,7 +1651,9 @@ class _MapPageState extends State<MapPage> {
             ),
           );
         } catch (e) {
-          debugPrint("[SafeSeat Mapbox] Timeout/Error fetching live position: $e");
+          debugPrint(
+            "[SafeSeat Mapbox] Timeout/Error fetching live position: $e",
+          );
           position = Position(
             longitude: 100.5018,
             latitude: 13.7563,
@@ -1071,7 +1668,11 @@ class _MapPageState extends State<MapPage> {
           );
         }
 
-        String address = "พิกัด: " + position.latitude.toStringAsFixed(5) + ", " + position.longitude.toStringAsFixed(5);
+        String address =
+            "พิกัด: " +
+            position.latitude.toStringAsFixed(5) +
+            ", " +
+            position.longitude.toStringAsFixed(5);
 
         if (mounted) {
           setState(() {
@@ -1081,7 +1682,11 @@ class _MapPageState extends State<MapPage> {
 
           // ย้ายกล้องไปที่ตำแหน่งจริงของเครื่องทันที
           _moveToCoordinates(position.latitude, position.longitude, zoom: 15);
-          _addDriverMarkerAt(position.latitude, position.longitude, showSnackBar: false);
+          _addDriverMarkerAt(
+            position.latitude,
+            position.longitude,
+            showSnackBar: false,
+          );
         }
       } else {
         setState(() {
@@ -1103,24 +1708,96 @@ class _MapPageState extends State<MapPage> {
     _mapController.move(LatLng(lat, lon), zoom);
   }
 
-  void _addDriverMarkerAt(double lat, double lon, {bool showSnackBar = true}) async {
-    final address = "พิกัด: " + lat.toStringAsFixed(5) + ", " + lon.toStringAsFixed(5);
-    
+  void _addDriverMarkerAt(
+    double lat,
+    double lon, {
+    bool showSnackBar = true,
+  }) async {
+    final address =
+        "พิกัด: " + lat.toStringAsFixed(5) + ", " + lon.toStringAsFixed(5);
+
     setState(() {
       _currentAddress = address;
-      
-      _markers = [
+
+      List<Marker> currentMarkers = [
         Marker(
           point: LatLng(lat, lon),
-          width: 80,
-          height: 80,
-          child: const Icon(
-            Icons.location_on,
-            color: Colors.red,
-            size: 48,
+          width: 56,
+          height: 56,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+              border: Border.all(color: const Color(0xFF2563EB), width: 3),
+            ),
+            child: const Icon(
+              Icons.directions_car_filled_rounded,
+              color: Color(0xFF2563EB),
+              size: 30,
+            ),
           ),
-        )
+        ),
       ];
+
+      if (_buddyTeamId != null && _buddyLat != null && _buddyLng != null) {
+        final isBuddyLeader = _buddyName?.toLowerCase().contains('leader') ?? false;
+        final buddyColor = isBuddyLeader ? const Color(0xFFD97706) : const Color(0xFF10B981);
+
+        currentMarkers.add(
+          Marker(
+            point: LatLng(_buddyLat!, _buddyLng!),
+            width: 60,
+            height: 60,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: buddyColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _buddyName ?? "Buddy",
+                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: buddyColor.withOpacity(0.4),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                    border: Border.all(color: buddyColor, width: 2.5),
+                  ),
+                  child: Icon(
+                    Icons.directions_car_filled_rounded,
+                    color: buddyColor,
+                    size: 22,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      _markers = currentMarkers;
     });
 
     _moveToCoordinates(lat, lon, zoom: 15);
@@ -1132,7 +1809,6 @@ class _MapPageState extends State<MapPage> {
       _selectedPlaceAddress = address;
     });
   }
-
 
   void _zoomIn() {
     _moveToCoordinates(
@@ -1164,7 +1840,9 @@ class _MapPageState extends State<MapPage> {
       buttonText = isOnline ? "ONLINE (BUDDY)" : "OFFLINE (BUDDY)";
     } else {
       // สำหรับหัวหน้าทีม (Leader) แสดงสีตามปกติ
-      buttonColor = isOnline ? const Color(0xFF22C55E) : const Color(0xFF1E1F22);
+      buttonColor = isOnline
+          ? const Color(0xFF22C55E)
+          : const Color(0xFF1E1F22);
       buttonText = isOnline ? "ONLINE" : "OFFLINE";
     }
 
@@ -1179,22 +1857,30 @@ class _MapPageState extends State<MapPage> {
 
         if (!_isLeader) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("เฉพาะหัวหน้าทีมเท่านั้นที่สามารถกด Online ได้")),
+            const SnackBar(
+              content: Text("เฉพาะหัวหน้าทีมเท่านั้นที่สามารถกด Online ได้"),
+            ),
           );
           return;
         }
 
-        if (!isOnline) { // กำลังจะเปิด Online
+        if (!isOnline) {
+          // กำลังจะเปิด Online
           if (_buddyTeamId == null) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("กรุณาจับคู่เพื่อนร่วมทางก่อนเข้าสู่สถานะออนไลน์")),
+              const SnackBar(
+                content: Text(
+                  "กรุณาจับคู่เพื่อนร่วมทางก่อนเข้าสู่สถานะออนไลน์",
+                ),
+              ),
             );
             String? username = await SessionManager.getUsername();
             if (username != null && mounted) {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => SearchbuddyPage(currentUsername: username),
+                  builder: (context) =>
+                      SearchbuddyPage(currentUsername: username),
                 ),
               );
             }
@@ -1203,18 +1889,26 @@ class _MapPageState extends State<MapPage> {
         }
 
         final newOnlineState = !isOnline;
-        
-        // Update database teamstatus
+
+        // Update database teamstatus & Broadcast
         if (_buddyTeamId != null) {
+          final targetStatus = newOnlineState ? 'Ready' : 'Offline';
           try {
             await Supabase.instance.client
                 .from('buddyteam')
-                .update({
-                  'teamstatus': newOnlineState ? 'Ready' : 'Offline',
-                })
+                .update({'teamstatus': targetStatus})
                 .eq('buddyteamid', _buddyTeamId!);
           } catch (e) {
             debugPrint("Failed to update team status in DB: $e");
+          }
+
+          try {
+            await _teamChannel?.sendBroadcastMessage(
+              event: 'team_status_changed',
+              payload: {'status': targetStatus, 'sender': _currentUsername},
+            );
+          } catch (e) {
+            debugPrint("Failed to broadcast team status: $e");
           }
         }
 
@@ -1243,11 +1937,7 @@ class _MapPageState extends State<MapPage> {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.power_settings_new,
-              color: Colors.white,
-              size: 24,
-            ),
+            const Icon(Icons.power_settings_new, color: Colors.white, size: 24),
             const SizedBox(width: 10),
             Text(
               buttonText,
@@ -1312,7 +2002,10 @@ class _MapPageState extends State<MapPage> {
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              initialCenter: const LatLng(13.7563, 100.5018), // กรุงเทพฯ เป็นค่าเริ่มต้น
+              initialCenter: const LatLng(
+                13.7563,
+                100.5018,
+              ), // กรุงเทพฯ เป็นค่าเริ่มต้น
               initialZoom: 12.0,
               maxZoom: 18.0,
               minZoom: 3.0,
@@ -1324,12 +2017,8 @@ class _MapPageState extends State<MapPage> {
                 userAgentPackageName: 'com.example.mobile_project',
                 retinaMode: RetinaMode.isHighDensity(context),
               ),
-              PolylineLayer(
-                polylines: _polylines,
-              ),
-              MarkerLayer(
-                markers: _markers,
-              ),
+              PolylineLayer(polylines: _polylines),
+              MarkerLayer(markers: _markers),
             ],
           ),
 
@@ -1343,11 +2032,13 @@ class _MapPageState extends State<MapPage> {
                 color: Colors.black.withOpacity(0.85),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: _isLoadingLeaderStatus 
-                      ? Colors.grey 
+                  color: _isLoadingLeaderStatus
+                      ? Colors.grey
                       : (_buddyTeamId == null
-                          ? Colors.grey
-                          : (_isLeader ? const Color(0xFF7CE5FF) : const Color(0xFFFFB300))),
+                            ? Colors.grey
+                            : (_isLeader
+                                  ? const Color(0xFF2340A7)
+                                  : const Color(0xFFD97706))),
                   width: 1.5,
                 ),
                 boxShadow: const [
@@ -1365,13 +2056,17 @@ class _MapPageState extends State<MapPage> {
                     _isLoadingLeaderStatus
                         ? Icons.hourglass_empty
                         : (_buddyTeamId == null
-                            ? Icons.link_off
-                            : (_isLeader ? Icons.stars : Icons.supervised_user_circle)),
-                    color: _isLoadingLeaderStatus 
-                        ? Colors.grey 
+                              ? Icons.link_off
+                              : (_isLeader
+                                    ? Icons.stars
+                                    : Icons.supervised_user_circle)),
+                    color: _isLoadingLeaderStatus
+                        ? Colors.grey
                         : (_buddyTeamId == null
-                            ? Colors.grey
-                            : (_isLeader ? const Color(0xFF7CE5FF) : const Color(0xFFFFB300))),
+                              ? Colors.grey
+                              : (_isLeader
+                                    ? const Color(0xFF2563EB)
+                                    : const Color(0xFFD97706))),
                     size: 20,
                   ),
                   const SizedBox(width: 8),
@@ -1379,8 +2074,10 @@ class _MapPageState extends State<MapPage> {
                     _isLoadingLeaderStatus
                         ? "กำลังตรวจสอบบทบาท..."
                         : (_buddyTeamId == null
-                            ? "ยังไม่ได้จับคู่"
-                            : (_isLeader ? "Leader (หัวหน้าทีม)" : "Follower (บัดดี้)")),
+                              ? "ยังไม่ได้จับคู่"
+                              : (_isLeader
+                                    ? "Leader (หัวหน้าทีม)"
+                                    : "Follower (บัดดี้)")),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -1392,8 +2089,6 @@ class _MapPageState extends State<MapPage> {
             ),
           ),
 
-
-
           // 2. ป้ายแสดงรายละเอียด Marker เมื่อถูกสัมผัสแตะ
           if (_selectedPlaceName != null)
             Positioned(
@@ -1401,21 +2096,25 @@ class _MapPageState extends State<MapPage> {
               left: 20,
               right: 20,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF7CE5FF),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: const [
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+                  boxShadow: [
                     BoxShadow(
-                      color: Colors.black38,
-                      blurRadius: 8,
-                      offset: Offset(0, 4),
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info, color: Color(0xFF1E1E1E), size: 20),
+                    const Icon(Icons.info_outline, color: Color(0xFF2340A7), size: 22),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -1425,7 +2124,7 @@ class _MapPageState extends State<MapPage> {
                           Text(
                             _selectedPlaceName!,
                             style: const TextStyle(
-                              color: Color(0xFF1E1E1E),
+                              color: Color(0xFF1E293B),
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                             ),
@@ -1435,7 +2134,7 @@ class _MapPageState extends State<MapPage> {
                             Text(
                               _selectedPlaceAddress!,
                               style: const TextStyle(
-                                color: Color(0xFF333333),
+                                color: Color(0xFF64748B),
                                 fontSize: 11,
                                 height: 1.2,
                               ),
@@ -1447,7 +2146,11 @@ class _MapPageState extends State<MapPage> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Color(0xFF1E1E1E), size: 18),
+                      icon: const Icon(
+                        Icons.close,
+                        color: Color(0xFF64748B),
+                        size: 18,
+                      ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                       onPressed: () {
@@ -1464,12 +2167,18 @@ class _MapPageState extends State<MapPage> {
 
           // 3. ปุ่มเข็มทิศ / ตำแหน่งปัจจุบัน (ขวาล่างด้านบนปุ่ม Offline/การรับงาน)
           Positioned(
-            bottom: (_isJobOfferOpen || _hasActiveJob) ? 410 : 120,
+            bottom: _isJobOfferOpen
+                ? 410
+                : (_hasActiveJob ? (_isJobSheetCollapsed ? 120 : 410) : 120),
             right: 20,
             child: GestureDetector(
               onTap: () {
                 if (_currentPosition != null) {
-                  _addDriverMarkerAt(_currentPosition!.latitude, _currentPosition!.longitude, showSnackBar: true);
+                  _addDriverMarkerAt(
+                    _currentPosition!.latitude,
+                    _currentPosition!.longitude,
+                    showSnackBar: true,
+                  );
                 } else {
                   _initLocation();
                 }
@@ -1500,14 +2209,18 @@ class _MapPageState extends State<MapPage> {
             ),
           ),
 
-
           // ปุ่มศูนย์ความปลอดภัย (แสดงเมื่อมีงานเสนอเข้ามา หรือมีงานปัจจุบัน)
           if (_isJobOfferOpen || _hasActiveJob)
             Positioned(
-              bottom: 410,
+              bottom: _isJobOfferOpen
+                  ? 410
+                  : (_hasActiveJob ? (_isJobSheetCollapsed ? 120 : 410) : 120),
               left: 20,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFC0C0C0),
                   borderRadius: BorderRadius.circular(18),
@@ -1549,54 +2262,118 @@ class _MapPageState extends State<MapPage> {
               bottom: 0,
               left: 0,
               right: 0,
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
                 decoration: BoxDecoration(
-                  color: _isLadyMode ? const Color(0xFFFFF0F5) : const Color(0xFFB2B2B2),
+                  color: _isLadyMode
+                      ? const Color(0xFFFFF0F5)
+                      : const Color(0xFFB2B2B2),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(24),
                     topRight: Radius.circular(24),
                   ),
-                  border: _isLadyMode ? Border.all(color: const Color(0xFFFF69B4), width: 2) : null,
+                  border: _isLadyMode
+                      ? Border.all(color: const Color(0xFFFF69B4), width: 2)
+                      : null,
                   boxShadow: [
                     BoxShadow(
-                      color: _isLadyMode ? const Color(0xFFFF1493).withOpacity(0.3) : Colors.black26,
+                      color: _isLadyMode
+                          ? const Color(0xFFFF1493).withOpacity(0.3)
+                          : Colors.black26,
                       blurRadius: 12,
                       spreadRadius: 3,
-                    )
+                    ),
                   ],
                 ),
-                padding: const EdgeInsets.only(top: 10, bottom: 20, left: 20, right: 20),
+                padding: const EdgeInsets.only(
+                  top: 10,
+                  bottom: 20,
+                  left: 20,
+                  right: 20,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ขีดสำหรับลากดึง
-                    Center(
+                    // ขีดสำหรับลากดึง/แตะเพื่อย่อ-ขยาย
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        setState(() {
+                          _isJobSheetCollapsed = !_isJobSheetCollapsed;
+                        });
+                      },
                       child: Container(
-                        width: 80,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: _isLadyMode ? const Color(0xFFFF1493) : const Color(0xCC000000),
-                          borderRadius: BorderRadius.circular(3),
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: 80,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: _isLadyMode
+                                ? const Color(0xFFFF1493)
+                                : const Color(0xCC000000),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 15),
+                    const SizedBox(height: 10),
 
-                    Text(
-                      _currentJobStatus == 'going to pickup'
-                          ? "กำลังไปรับลูกค้า"
-                          : (_currentJobStatus == 'arrived' ? "ถึงจุดนัดหมายแล้ว (รอลูกค้า)" : "กำลังเดินทางไปส่งลูกค้า"),
-                      style: TextStyle(
-                        color: _isLadyMode ? const Color(0xFFC71585) : const Color(0xDD000000),
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
+                    // แถบหัวข้อสถานะ พร้อมปุ่มย่อ/ขยาย
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        setState(() {
+                          _isJobSheetCollapsed = !_isJobSheetCollapsed;
+                        });
+                      },
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _currentJobStatus == 'going to pickup'
+                                  ? "กำลังไปรับลูกค้า"
+                                  : (_currentJobStatus == 'arrived'
+                                        ? "ถึงจุดนัดหมายแล้ว (รอลูกค้า)"
+                                        : "กำลังเดินทางไปส่งลูกค้า"),
+                              style: TextStyle(
+                                color: _isLadyMode
+                                    ? const Color(0xFFC71585)
+                                    : const Color(0xDD000000),
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.08),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              _isJobSheetCollapsed
+                                  ? Icons.keyboard_arrow_up
+                                  : Icons.keyboard_arrow_down,
+                              color: _isLadyMode
+                                  ? const Color(0xFFC71585)
+                                  : Colors.black87,
+                              size: 24,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     if (_isLadyMode) ...[
                       const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [Color(0xFFFF69B4), Color(0xFFFF1493)],
@@ -1607,7 +2384,7 @@ class _MapPageState extends State<MapPage> {
                               color: Color(0x40FF1493),
                               blurRadius: 6,
                               offset: Offset(0, 2),
-                            )
+                            ),
                           ],
                         ),
                         child: const Row(
@@ -1627,222 +2404,258 @@ class _MapPageState extends State<MapPage> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 15),
+                    if (!_isJobSheetCollapsed) ...[
+                      const SizedBox(height: 15),
 
-                    // ข้อมูลลูกค้า
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 28,
-                          backgroundColor: Colors.white,
-                          backgroundImage: (_clientProfileImage != null && _clientProfileImage!.isNotEmpty)
-                              ? NetworkImage(_clientProfileImage!)
-                              : null,
-                          child: (_clientProfileImage == null || _clientProfileImage!.isEmpty)
-                              ? const Icon(Icons.person, size: 32, color: Colors.grey)
-                              : null,
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: Text(
-                            _clientName ?? "คุณหญิงนุ้งนิ้ม สายบันเทิง",
-                            style: const TextStyle(
-                              color: Color(0xDD000000),
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                      // ข้อมูลลูกค้า
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 28,
+                            backgroundColor: Colors.white,
+                            backgroundImage:
+                                (_clientProfileImage != null &&
+                                    _clientProfileImage!.isNotEmpty)
+                                ? NetworkImage(_clientProfileImage!)
+                                : null,
+                            child:
+                                (_clientProfileImage == null ||
+                                    _clientProfileImage!.isEmpty)
+                                ? const Icon(
+                                    Icons.person,
+                                    size: 32,
+                                    color: Colors.grey,
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            child: Text(
+                              _clientName ?? "คุณหญิงนุ้งนิ้ม สายบันเทิง",
+                              style: const TextStyle(
+                                color: Color(0xDD000000),
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            debugPrint("Calling customer: $_clientPhone");
-                          },
-                          child: Container(
-                            width: 48,
-                            height: 48,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.phone,
-                              color: Colors.black,
-                              size: 26,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        GestureDetector(
-                          onTap: () {
-                            if (_isPubJob) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text("ไม่สามารถรายงานลูกค้าเนื่องจากเป็นคำขอจากสถานบันเทิง (Pub)"),
-                                  backgroundColor: Colors.orange,
-                                ),
-                              );
-                              return;
-                            }
-                            if (_activeRequestId != null) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => ReportUserPage(requestId: _activeRequestId),
-                                ),
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("ไม่พบข้อมูลคำขอที่จะรายงาน")),
-                              );
-                            }
-                          },
-                          child: Container(
-                            width: 48,
-                            height: 48,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.report_problem,
-                              color: Colors.redAccent,
-                              size: 26,
+                          GestureDetector(
+                            onTap: () {
+                              debugPrint("Calling customer: $_clientPhone");
+                            },
+                            child: Container(
+                              width: 48,
+                              height: 48,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.phone,
+                                color: Colors.black,
+                                size: 26,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
+                          const SizedBox(width: 10),
+                          GestureDetector(
+                            onTap: () {
+                              if (_isPubJob) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      "ไม่สามารถรายงานลูกค้าเนื่องจากเป็นคำขอจากสถานบันเทิง (Pub)",
+                                    ),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                                return;
+                              }
+                              if (_activeRequestId != null) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ReportUserPage(
+                                      requestId: _activeRequestId,
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("ไม่พบข้อมูลคำขอที่จะรายงาน"),
+                                  ),
+                                );
+                              }
+                            },
+                            child: Container(
+                              width: 48,
+                              height: 48,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.report_problem,
+                                color: Colors.redAccent,
+                                size: 26,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
 
-                    // เส้นทางจุดเริ่มต้นและจุดหมายปลายทาง
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Column(
-                          children: [
-                            const Icon(Icons.location_on, color: Colors.black87, size: 28),
-                            Container(
-                              width: 2.5,
-                              height: 60,
-                              color: Colors.black87,
-                            ),
-                            const Icon(Icons.location_on_outlined, color: Colors.black87, size: 28),
-                          ],
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      // เส้นทางจุดเริ่มต้นและจุดหมายปลายทาง
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Column(
                             children: [
-                              Text(
-                                _pickupName ?? "ผับคุณหนูนิ่มประจำเชียงใหม่",
-                                style: const TextStyle(
-                                  color: Color(0xDD000000),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              const Icon(
+                                Icons.location_on,
+                                color: Colors.black87,
+                                size: 28,
                               ),
-                              const SizedBox(height: 15),
-                              Text(
-                                "${_jobDistance ?? '3.4'} Km. Estimate 20 Min",
-                                style: const TextStyle(
-                                  color: Colors.black54,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                              Container(
+                                width: 2.5,
+                                height: 60,
+                                color: Colors.black87,
                               ),
-                              const SizedBox(height: 15),
-                              Text(
-                                _dropoffName ?? "บ้านพักคุณหนูนิ่ม",
-                                style: const TextStyle(
-                                  color: Color(0xDD000000),
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              const Icon(
+                                Icons.location_on_outlined,
+                                color: Colors.black87,
+                                size: 28,
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 25),
-
-                    // ปุ่มกดแสดงสถานะ (สไลด์เพื่อยืนยัน)
-                    SlideActionBtn(
-                      text: _currentJobStatus == 'going to pickup'
-                          ? "ถึงจุดนัดหมาย"
-                          : (_currentJobStatus == 'arrived' ? "เริ่มเดินทาง" : "สิ้นสุดการเดินทาง"),
-                      onConfirmed: () async {
-                        if (_currentJobStatus == 'going to pickup') {
-                          try {
-                            await Supabase.instance.client
-                                .from(_isPubJob ? 'requestbypub' : 'requestbyuser')
-                                .update({'requeststatus': 'ถึงจุดนัดหมาย'})
-                                .eq('requestid', _activeRequestId);
-                            
-                            _teamChannel?.send(
-                              type: RealtimeListenTypes.broadcast,
-                              event: 'job_status_updated',
-                              payload: {'status': 'ถึงจุดนัดหมาย'},
-                            );
-                          } catch (e) {
-                            debugPrint("Error updating request status: $e");
-                          }
-                          setState(() {
-                            _currentJobStatus = 'arrived';
-                          });
-                        } else if (_currentJobStatus == 'arrived') {
-                          try {
-                            await Supabase.instance.client
-                                .from(_isPubJob ? 'requestbypub' : 'requestbyuser')
-                                .update({'requeststatus': 'กำลังเดินทาง'})
-                                .eq('requestid', _activeRequestId);
-                            
-                            _teamChannel?.send(
-                              type: RealtimeListenTypes.broadcast,
-                              event: 'job_status_updated',
-                              payload: {'status': 'กำลังเดินทาง'},
-                            );
-                          } catch (e) {
-                            debugPrint("Error updating request status: $e");
-                          }
-                          setState(() {
-                            _currentJobStatus = 'in progress';
-                          });
-                        } else if (_currentJobStatus == 'in progress') {
-                          final result = await Navigator.push<bool>(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => FinishJobPage(
-                                requestId: _activeRequestId,
-                                buddyTeamId: _buddyTeamId,
-                                isPubJob: _isPubJob,
-                                distance: _jobDistance,
-                                fare: _jobFee,
-                              ),
+                          const SizedBox(width: 15),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _pickupName ?? "ผับคุณหนูนิ่มประจำเชียงใหม่",
+                                  style: const TextStyle(
+                                    color: Color(0xDD000000),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 15),
+                                Text(
+                                  "${(_jobDistance ?? '3.4').replaceAll(RegExp(r'\s*km', caseSensitive: false), '')} Km. Estimate ${_jobDuration ?? '20 Min'}",
+                                  style: const TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 15),
+                                Text(
+                                  _dropoffName ?? "บ้านพักคุณหนูนิ่ม",
+                                  style: const TextStyle(
+                                    color: Color(0xDD000000),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
-                          );
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 25),
 
-                          if (result == true) {
+                      // ปุ่มกดแสดงสถานะ (สไลด์เพื่อยืนยัน)
+                      SlideActionBtn(
+                        text: _currentJobStatus == 'going to pickup'
+                            ? "ถึงจุดนัดหมาย"
+                            : (_currentJobStatus == 'arrived'
+                                  ? "เริ่มเดินทาง"
+                                  : "สิ้นสุดการเดินทาง"),
+                        onConfirmed: () async {
+                          if (_currentJobStatus == 'going to pickup') {
                             try {
+                              await Supabase.instance.client
+                                  .from(
+                                    _isPubJob
+                                        ? 'requestbypub'
+                                        : 'requestbyuser',
+                                  )
+                                  .update({'requeststatus': 'ถึงจุดนัดหมาย'})
+                                  .eq('requestid', _activeRequestId);
+
                               _teamChannel?.send(
                                 type: RealtimeListenTypes.broadcast,
                                 event: 'job_status_updated',
-                                payload: {'status': 'เสร็จสิ้น'},
+                                payload: {'status': 'ถึงจุดนัดหมาย'},
                               );
                             } catch (e) {
-                              debugPrint("Error broadcasting job completion: $e");
+                              debugPrint("Error updating request status: $e");
                             }
-
                             setState(() {
-                              _clearJobState();
-                              _currentPosition = null;
-                              _initLocation();
+                              _currentJobStatus = 'arrived';
                             });
+                          } else if (_currentJobStatus == 'arrived') {
+                            try {
+                              await Supabase.instance.client
+                                  .from(
+                                    _isPubJob
+                                        ? 'requestbypub'
+                                        : 'requestbyuser',
+                                  )
+                                  .update({'requeststatus': 'กำลังเดินทาง'})
+                                  .eq('requestid', _activeRequestId);
+
+                              _teamChannel?.send(
+                                type: RealtimeListenTypes.broadcast,
+                                event: 'job_status_updated',
+                                payload: {'status': 'กำลังเดินทาง'},
+                              );
+                            } catch (e) {
+                              debugPrint("Error updating request status: $e");
+                            }
+                            setState(() {
+                              _currentJobStatus = 'in progress';
+                            });
+                          } else if (_currentJobStatus == 'in progress') {
+                            final result = await Navigator.push<bool>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => FinishJobPage(
+                                  requestId: _activeRequestId,
+                                  buddyTeamId: _buddyTeamId,
+                                  isPubJob: _isPubJob,
+                                  distance: _jobDistance,
+                                  fare: _jobFee,
+                                ),
+                              ),
+                            );
+
+                            if (result == true) {
+                              try {
+                                _teamChannel?.send(
+                                  type: RealtimeListenTypes.broadcast,
+                                  event: 'job_status_updated',
+                                  payload: {'status': 'เสร็จสิ้น'},
+                                );
+                              } catch (e) {
+                                debugPrint(
+                                  "Error broadcasting job completion: $e",
+                                );
+                              }
+
+                              setState(() {
+                                _clearJobState();
+                                _currentPosition = null;
+                                _initLocation();
+                              });
+                            }
                           }
-                        }
-                      },
-                    ),
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1854,21 +2667,32 @@ class _MapPageState extends State<MapPage> {
               right: 0,
               child: Container(
                 decoration: BoxDecoration(
-                  color: _isLadyMode ? const Color(0xFFFFF0F5) : const Color(0xFFB2B2B2),
+                  color: _isLadyMode
+                      ? const Color(0xFFFFF0F5)
+                      : const Color(0xFFB2B2B2),
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(24),
                     topRight: Radius.circular(24),
                   ),
-                  border: _isLadyMode ? Border.all(color: const Color(0xFFFF69B4), width: 2) : null,
+                  border: _isLadyMode
+                      ? Border.all(color: const Color(0xFFFF69B4), width: 2)
+                      : null,
                   boxShadow: [
                     BoxShadow(
-                      color: _isLadyMode ? const Color(0xFFFF1493).withOpacity(0.35) : Colors.black26,
+                      color: _isLadyMode
+                          ? const Color(0xFFFF1493).withOpacity(0.35)
+                          : Colors.black26,
                       blurRadius: 12,
                       spreadRadius: 3,
-                    )
+                    ),
                   ],
                 ),
-                padding: const EdgeInsets.only(top: 10, bottom: 20, left: 20, right: 20),
+                padding: const EdgeInsets.only(
+                  top: 10,
+                  bottom: 20,
+                  left: 20,
+                  right: 20,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1877,21 +2701,27 @@ class _MapPageState extends State<MapPage> {
                       width: 80,
                       height: 6,
                       decoration: BoxDecoration(
-                        color: _isLadyMode ? const Color(0xFFFF1493) : const Color(0xCC000000),
+                        color: _isLadyMode
+                            ? const Color(0xFFFF1493)
+                            : const Color(0xCC000000),
                         borderRadius: BorderRadius.circular(3),
                       ),
                     ),
                     const SizedBox(height: 15),
-                    
+
                     // หัวข้อ
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: Text(
-                            _isLadyMode ? "🌸 มีงานใหม่ (Lady Mode)!" : "มีงานใหม่เข้ามา!",
+                            _isLadyMode
+                                ? "🌸 มีงานใหม่ (Lady Mode)!"
+                                : "มีงานใหม่เข้ามา!",
                             style: TextStyle(
-                              color: _isLadyMode ? const Color(0xFFC71585) : const Color(0xDD000000),
+                              color: _isLadyMode
+                                  ? const Color(0xFFC71585)
+                                  : const Color(0xDD000000),
                               fontSize: 17,
                               fontWeight: FontWeight.bold,
                             ),
@@ -1901,12 +2731,20 @@ class _MapPageState extends State<MapPage> {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.gesture, color: _isLadyMode ? const Color(0xFFC71585) : const Color(0xDD000000), size: 18),
+                            Icon(
+                              Icons.gesture,
+                              color: _isLadyMode
+                                  ? const Color(0xFFC71585)
+                                  : const Color(0xDD000000),
+                              size: 18,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               _jobDistance ?? "0.0 km",
                               style: TextStyle(
-                                color: _isLadyMode ? const Color(0xFFC71585) : const Color(0xDD000000),
+                                color: _isLadyMode
+                                    ? const Color(0xFFC71585)
+                                    : const Color(0xDD000000),
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -1920,7 +2758,10 @@ class _MapPageState extends State<MapPage> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [Color(0xFFFF69B4), Color(0xFFFF1493)],
@@ -1931,7 +2772,7 @@ class _MapPageState extends State<MapPage> {
                                 color: Color(0x40FF1493),
                                 blurRadius: 6,
                                 offset: Offset(0, 2),
-                              )
+                              ),
                             ],
                           ),
                           child: const Row(
@@ -1960,11 +2801,19 @@ class _MapPageState extends State<MapPage> {
                         CircleAvatar(
                           radius: 28,
                           backgroundColor: Colors.white,
-                          backgroundImage: (_clientProfileImage != null && _clientProfileImage!.isNotEmpty)
+                          backgroundImage:
+                              (_clientProfileImage != null &&
+                                  _clientProfileImage!.isNotEmpty)
                               ? NetworkImage(_clientProfileImage!)
                               : null,
-                          child: (_clientProfileImage == null || _clientProfileImage!.isEmpty)
-                              ? const Icon(Icons.person, size: 32, color: Colors.grey)
+                          child:
+                              (_clientProfileImage == null ||
+                                  _clientProfileImage!.isEmpty)
+                              ? const Icon(
+                                  Icons.person,
+                                  size: 32,
+                                  color: Colors.grey,
+                                )
                               : null,
                         ),
                         const SizedBox(width: 15),
@@ -2010,7 +2859,10 @@ class _MapPageState extends State<MapPage> {
                             color: Colors.grey[400],
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.directions_car, color: Color(0xDE000000)),
+                          child: const Icon(
+                            Icons.directions_car,
+                            color: Color(0xDE000000),
+                          ),
                         ),
                         const SizedBox(width: 15),
                         Expanded(
@@ -2049,7 +2901,10 @@ class _MapPageState extends State<MapPage> {
                             color: Colors.black,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.attach_money, color: Colors.white),
+                          child: const Icon(
+                            Icons.attach_money,
+                            color: Colors.white,
+                          ),
                         ),
                         const SizedBox(width: 15),
                         Expanded(
@@ -2078,22 +2933,31 @@ class _MapPageState extends State<MapPage> {
                     ),
                     const SizedBox(height: 12),
 
-                    // ข้อมูลเกียร์
+                    // ข้อมูลเกียร์ / ประเภทรถ
                     Row(
                       children: [
                         Container(
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: Colors.grey[400],
+                            color: (_gearType != null && _gearType!.contains("EV"))
+                                ? const Color(0xFF2340A7).withOpacity(0.15)
+                                : Colors.grey[400],
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.settings, color: Color(0xDE000000)),
+                          child: Icon(
+                            (_gearType != null && _gearType!.contains("EV"))
+                                ? Icons.electric_car_rounded
+                                : Icons.settings,
+                            color: (_gearType != null && _gearType!.contains("EV"))
+                                ? const Color(0xFF2340A7)
+                                : const Color(0xDE000000),
+                          ),
                         ),
                         const SizedBox(width: 15),
                         Expanded(
                           child: Text(
-                            _gearType ?? "Manual Gear",
+                            _gearType ?? "Auto Gear",
                             style: const TextStyle(
                               color: Color(0xDD000000),
                               fontSize: 15,
@@ -2118,7 +2982,10 @@ class _MapPageState extends State<MapPage> {
                                 _isJobOfferOpen = false;
                               });
                             },
-                            icon: const Icon(Icons.directions_car, color: Colors.black),
+                            icon: const Icon(
+                              Icons.directions_car,
+                              color: Colors.black,
+                            ),
                             label: const Text(
                               "Accept",
                               style: TextStyle(
@@ -2131,7 +2998,8 @@ class _MapPageState extends State<MapPage> {
                               backgroundColor: const Color(0xFF00FF33),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ),
@@ -2139,18 +3007,29 @@ class _MapPageState extends State<MapPage> {
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () {
-                              _teamChannel?.send(
-                                type: RealtimeListenTypes.broadcast,
-                                event: 'job_denied',
-                                payload: {
-                                  'requestid': _activeRequestId,
-                                },
-                              );
-                              _closeJobOfferDialog();
+                              if (_teamChannel != null) {
+                                try {
+                                  _teamChannel!.sendBroadcastMessage(
+                                    event: 'job_denied',
+                                    payload: {
+                                      'requestid': _activeRequestId,
+                                      'denied_by': _currentUsername ?? '',
+                                    },
+                                  );
+                                } catch (e) {
+                                  debugPrint("Failed to broadcast job_denied: $e");
+                                }
+                              }
+                              setState(() {
+                                _isJobOfferOpen = false;
+                              });
                             },
-                            icon: const Icon(Icons.pan_tool, color: Colors.white),
+                            icon: const Icon(
+                              Icons.pan_tool,
+                              color: Colors.white,
+                            ),
                             label: const Text(
-                              "Denial",
+                              "ปฏิเสธ",
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -2158,10 +3037,11 @@ class _MapPageState extends State<MapPage> {
                               ),
                             ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFF3B30),
+                              backgroundColor: const Color(0xFFDC2626),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ),
@@ -2176,11 +3056,12 @@ class _MapPageState extends State<MapPage> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 0, // แท็บ Home ในปัจจุบัน
         type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFF1E1E1E),
-        selectedItemColor: const Color(0xFF7CE5FF),
-        unselectedItemColor: Colors.white60,
+        backgroundColor: Colors.white,
+        selectedItemColor: const Color(0xFF2340A7), // Primary Brand #2340A7
+        unselectedItemColor: const Color(0xFF94A3B8), // Slate 400
         showSelectedLabels: true,
         showUnselectedLabels: true,
+        elevation: 8,
         onTap: (index) async {
           if (index == 0) return; // อยู่หน้า Home แล้วไม่ต้องทำอะไร
           String? username = await SessionManager.getUsername();
@@ -2210,17 +3091,15 @@ class _MapPageState extends State<MapPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ProfilePage(username: username, phoneno: phoneNo),
+                  builder: (context) =>
+                      ProfilePage(username: username, phoneno: phoneNo),
                 ),
               );
             }
           }
         },
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: "Home",
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
           BottomNavigationBarItem(
             icon: Icon(Icons.account_balance_wallet_outlined),
             label: "Wallet",
@@ -2242,7 +3121,11 @@ class _MapPageState extends State<MapPage> {
 class SlideActionBtn extends StatefulWidget {
   final String text;
   final VoidCallback onConfirmed;
-  const SlideActionBtn({super.key, required this.text, required this.onConfirmed});
+  const SlideActionBtn({
+    super.key,
+    required this.text,
+    required this.onConfirmed,
+  });
 
   @override
   State<SlideActionBtn> createState() => _SlideActionBtnState();
@@ -2258,7 +3141,7 @@ class _SlideActionBtnState extends State<SlideActionBtn> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final double maxDragDistance = constraints.maxWidth - _sliderWidth;
-        
+
         return Container(
           height: _buttonHeight,
           width: double.infinity,
@@ -2271,7 +3154,9 @@ class _SlideActionBtnState extends State<SlideActionBtn> {
               // Text in the center
               Center(
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 40.0), // give space for the green button
+                  padding: const EdgeInsets.only(
+                    left: 40.0,
+                  ), // give space for the green button
                   child: Text(
                     widget.text,
                     style: const TextStyle(
@@ -2282,7 +3167,7 @@ class _SlideActionBtnState extends State<SlideActionBtn> {
                   ),
                 ),
               ),
-              
+
               // Slideable button
               Positioned(
                 left: _dragPosition,
@@ -2291,7 +3176,8 @@ class _SlideActionBtnState extends State<SlideActionBtn> {
                     setState(() {
                       _dragPosition += details.primaryDelta!;
                       if (_dragPosition < 0) _dragPosition = 0;
-                      if (_dragPosition > maxDragDistance) _dragPosition = maxDragDistance;
+                      if (_dragPosition > maxDragDistance)
+                        _dragPosition = maxDragDistance;
                     });
                   },
                   onHorizontalDragEnd: (details) {

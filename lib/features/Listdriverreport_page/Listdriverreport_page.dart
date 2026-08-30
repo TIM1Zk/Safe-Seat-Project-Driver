@@ -59,7 +59,9 @@ class _ListDriverReportPageState extends State<ListDriverReportPage> {
     final recentReports = _reports.where((r) {
       if (r['reportdate'] == null) return true;
       try {
-        final parsedDate = DateTime.parse(r['reportdate'].toString()).toLocal();
+        final rawStr = r['reportdate'].toString();
+        final isoStr = (!rawStr.endsWith('Z') && !rawStr.contains('+')) ? '${rawStr}Z' : rawStr;
+        final parsedDate = DateTime.parse(isoStr).toLocal();
         return parsedDate.isAfter(oneMonthAgo) || parsedDate.isAtSameMomentAs(oneMonthAgo);
       } catch (e) {
         return true;
@@ -251,7 +253,9 @@ class _ListDriverReportPageState extends State<ListDriverReportPage> {
     String formattedDate = "ไม่ระบุวันที่";
     if (report['reportdate'] != null) {
       try {
-        final DateTime parsed = DateTime.parse(report['reportdate']).toLocal();
+        final rawStr = report['reportdate'].toString();
+        final isoStr = (!rawStr.endsWith('Z') && !rawStr.contains('+')) ? '${rawStr}Z' : rawStr;
+        final DateTime parsed = DateTime.parse(isoStr).toLocal();
         formattedDate = DateFormat('dd MMM yyyy, HH:mm น.').format(parsed);
       } catch (e) {
         formattedDate = report['reportdate'].toString();
@@ -420,7 +424,9 @@ class _ListDriverReportPageState extends State<ListDriverReportPage> {
     String formattedDate = "ไม่ระบุวันที่";
     if (report['reportdate'] != null) {
       try {
-        final DateTime parsed = DateTime.parse(report['reportdate']).toLocal();
+        final rawStr = report['reportdate'].toString();
+        final isoStr = (!rawStr.endsWith('Z') && !rawStr.contains('+')) ? '${rawStr}Z' : rawStr;
+        final DateTime parsed = DateTime.parse(isoStr).toLocal();
         formattedDate = DateFormat('dd MMMM yyyy, HH:mm น.').format(parsed);
       } catch (e) {
         formattedDate = report['reportdate'].toString();

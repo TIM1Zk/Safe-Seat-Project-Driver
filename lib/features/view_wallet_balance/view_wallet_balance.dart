@@ -111,22 +111,22 @@ class _WalletBalancePageState extends State<WalletBalancePage> {
                       ),
                       const SizedBox(height: 12),
 
-                      // 2. TOTAL BALANCE Banner Card (Premium Dark Gradient matching ServiceSummaryPage)
+                      // 2. TOTAL BALANCE Banner Card (SafeSeat Brand Blue Gradient)
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF1E1E1E), Color(0xFF3A3A3A)],
+                            colors: [Color(0xFF2340A7), Color(0xFF0044C9)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
+                              color: const Color(0xFF2340A7).withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
                             ),
                           ],
                         ),
@@ -135,8 +135,8 @@ class _WalletBalancePageState extends State<WalletBalancePage> {
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: const [
-                                Text(
+                              children: [
+                                const Text(
                                   "ยอดเงินคงเหลือสุทธิ (Total Balance)",
                                   style: TextStyle(
                                     fontSize: 13,
@@ -144,7 +144,7 @@ class _WalletBalancePageState extends State<WalletBalancePage> {
                                     color: Colors.white70,
                                   ),
                                 ),
-                                Icon(Icons.account_balance_wallet, color: Color(0xFF7CE5FF), size: 22),
+                                Icon(Icons.account_balance_wallet, color: Colors.white.withOpacity(0.9), size: 22),
                               ],
                             ),
                             const SizedBox(height: 12),
@@ -174,124 +174,143 @@ class _WalletBalancePageState extends State<WalletBalancePage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // 3. Quick Action Cards (ถอนเงิน & ประวัติรายการ)
-                      Row(
-                        children: [
-                          // WITHDRAW Card Button
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () async {
-                                final result = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => WithdrawWalletPage(phone: widget.username),
+                      // 3. Quick Action Cards (ถอนเงิน & ประวัติรายการ) - IntrinsicHeight for equal height
+                      IntrinsicHeight(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // WITHDRAW Card Button
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () async {
+                                  final result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => WithdrawWalletPage(phone: widget.username),
+                                    ),
+                                  );
+                                  if (result == true) {
+                                    _controller.fetchBalance();
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.04),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
                                   ),
-                                );
-                                if (result == true) {
-                                  _controller.fetchBalance();
-                                }
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF5F5F7),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.black12),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black,
-                                        borderRadius: BorderRadius.circular(12),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.max,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF2340A7),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: const Icon(
+                                          Icons.south_rounded,
+                                          color: Colors.white,
+                                          size: 22,
+                                        ),
                                       ),
-                                      child: const Icon(
-                                        Icons.south_rounded,
-                                        color: Colors.white,
-                                        size: 22,
+                                      const SizedBox(height: 14),
+                                      const Text(
+                                        "ถอนเงิน",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: Color(0xFF1E293B),
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 14),
-                                    const Text(
-                                      "ถอนเงิน",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: Colors.black,
+                                      const SizedBox(height: 4),
+                                      const Text(
+                                        "ถอนเข้าบัญชีธนาคาร",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF64748B),
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    const Text(
-                                      "ถอนเข้าบัญชีธนาคาร",
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.black54,
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          // HISTORY Card Button
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => WalletHistoryPage(phone: widget.username),
+                            const SizedBox(width: 12),
+                            // HISTORY Card Button
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => WalletHistoryPage(phone: widget.username),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.04),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
                                   ),
-                                );
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF5F5F7),
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.black12),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black,
-                                        borderRadius: BorderRadius.circular(12),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.max,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF2563EB),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: const Icon(
+                                          Icons.history_rounded,
+                                          color: Colors.white,
+                                          size: 22,
+                                        ),
                                       ),
-                                      child: const Icon(
-                                        Icons.history_rounded,
-                                        color: Colors.white,
-                                        size: 22,
+                                      const SizedBox(height: 14),
+                                      const Text(
+                                        "ประวัติรายการ",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: Color(0xFF1E293B),
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 14),
-                                    const Text(
-                                      "ประวัติรายการ",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: Colors.black,
+                                      const SizedBox(height: 4),
+                                      const Text(
+                                        "ดูรายการเข้า/ออก",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF64748B),
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    const Text(
-                                      "ดูรายการเข้า/ออก",
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.black54,
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 28),
 
@@ -317,13 +336,13 @@ class _WalletBalancePageState extends State<WalletBalancePage> {
                       Container(height: 1.5, color: Colors.black12),
                       const SizedBox(height: 16),
 
-                      // SCB Mobile Banking card
+                      // KBank Mobile Banking card
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF5F5F7),
+                          color: const Color(0xFFF5FDF7),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.black12),
+                          border: Border.all(color: const Color(0xFF00A950).withOpacity(0.3)),
                         ),
                         child: Row(
                           children: [
@@ -331,15 +350,15 @@ class _WalletBalancePageState extends State<WalletBalancePage> {
                               width: 48,
                               height: 48,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF4A154B), // SCB Purple
+                                color: const Color(0xFF00A950), // KBank Green
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: const [
-                                  Icon(Icons.account_balance, color: Colors.amber, size: 20),
+                                  Icon(Icons.account_balance, color: Colors.white, size: 20),
                                   Text(
-                                    "SCB",
+                                    "KBANK",
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 9,
@@ -355,7 +374,7 @@ class _WalletBalancePageState extends State<WalletBalancePage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: const [
                                   Text(
-                                    "ธนาคารไทยพาณิชย์ (Mobile Banking)",
+                                    "ธนาคารกสิกรไทย (K PLUS)",
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
@@ -364,7 +383,7 @@ class _WalletBalancePageState extends State<WalletBalancePage> {
                                   ),
                                   SizedBox(height: 2),
                                   Text(
-                                    "ช่องทางเริ่มต้น • SCB Easy App",
+                                    "ช่องทางเริ่มต้น • K PLUS App",
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: Colors.black54,
@@ -439,11 +458,12 @@ class _WalletBalancePageState extends State<WalletBalancePage> {
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: 1, // แท็บ Wallet ในปัจจุบัน
           type: BottomNavigationBarType.fixed,
-          backgroundColor: const Color(0xFF1E1E1E),
-          selectedItemColor: const Color(0xFF7CE5FF),
-          unselectedItemColor: Colors.white60,
+          backgroundColor: Colors.white,
+          selectedItemColor: const Color(0xFF2340A7), // Primary Brand #2340A7
+          unselectedItemColor: const Color(0xFF94A3B8), // Slate 400
           showSelectedLabels: true,
           showUnselectedLabels: true,
+          elevation: 8,
           onTap: (index) async {
             if (index == 1) return; // อยู่หน้า Wallet แล้วไม่ต้องทำอะไร
             String? username = await SessionManager.getUsername();

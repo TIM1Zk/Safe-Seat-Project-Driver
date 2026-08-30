@@ -91,9 +91,9 @@ class _ReportUserPageState extends State<ReportUserPage> {
       return;
     }
 
-    // 3. Validate Report Detail - Thai, English, Numbers & spaces only (No special characters like !#_.)
-    final validCharRegex = RegExp(r'^[a-zA-Z0-9\u0E00-\u0E7F\s]+$');
-    if (!validCharRegex.hasMatch(detailText)) {
+    // 3. Validate Report Detail - Block dangerous special characters but allow Thai, English, Numbers & spaces
+    final dangerousCharsRegex = RegExp(r'[<>{}\\|`~\$\^]');
+    if (dangerousCharsRegex.hasMatch(detailText)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("รายละเอียดต้องเป็นตัวอักษรภาษาไทยและอังกฤษเท่านั้น (ห้ามใช้อักขระพิเศษ)"),
@@ -427,10 +427,10 @@ class _ReportUserPageState extends State<ReportUserPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF7CE5FF).withOpacity(0.08) : const Color(0xFFFAFAFA),
+          color: isSelected ? const Color(0xFF2340A7).withOpacity(0.08) : const Color(0xFFFAFAFA),
           borderRadius: BorderRadius.circular(15),
           border: Border.all(
-            color: isSelected ? const Color(0xFF007AFF) : Colors.black12,
+            color: isSelected ? const Color(0xFF2340A7) : const Color(0xFFE2E8F0),
             width: isSelected ? 1.5 : 1.0,
           ),
         ),
@@ -438,7 +438,7 @@ class _ReportUserPageState extends State<ReportUserPage> {
           children: [
             Icon(
               icon,
-              color: isSelected ? const Color(0xFF007AFF) : Colors.black87,
+              color: isSelected ? const Color(0xFF2340A7) : const Color(0xFF1E293B),
               size: 24,
             ),
             const SizedBox(width: 16),

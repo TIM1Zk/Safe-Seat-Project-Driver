@@ -17,7 +17,7 @@ enum FilterPeriod { today, week, month, all }
 
 class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
   bool _isLoading = true;
-  FilterPeriod _selectedPeriod = FilterPeriod.week;
+  FilterPeriod _selectedPeriod = FilterPeriod.today;
 
   double _totalEarnings = 0.0;
   int _completedRidesCount = 0;
@@ -64,13 +64,32 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
             .inFilter('buddy_team_id', teamIds)
             .or('requeststatus.eq.completed,requeststatus.eq.เสร็จสิ้น,requeststatus.eq.Finish');
 
+        // Tag source ให้แต่ละ request เพื่อแยกแยะว่ามาจากตารางไหน
+        for (var req in userReqs) { req['_source'] = 'user'; }
+        for (var req in pubReqs) { req['_source'] = 'pub'; }
+
         allCompletedReqs = [...userReqs, ...pubReqs];
+      }
+
+      DateTime parseTripDate(dynamic req) {
+        final raw = req['created_at'] ?? req['reqdatetime'] ?? req['reqdate'] ?? req['date'];
+        if (raw == null) return DateTime.now();
+        String str = raw.toString().trim();
+        // If string does not end with Z or timezone offset, assume UTC from Postgres
+        if (!str.endsWith('Z') && !str.contains('+') && !RegExp(r'-\d{2}:\d{2}$').hasMatch(str)) {
+          str += 'Z';
+        }
+        try {
+          return DateTime.parse(str).toLocal();
+        } catch (_) {
+          return DateTime.now();
+        }
       }
 
       // เรียงลำดับจากใหม่สุดไปเก่าสุด
       allCompletedReqs.sort((a, b) {
-        final dateA = DateTime.parse(a['reqdatetime'] ?? DateTime.now().toIso8601String());
-        final dateB = DateTime.parse(b['reqdatetime'] ?? DateTime.now().toIso8601String());
+        final dateA = parseTripDate(a);
+        final dateB = parseTripDate(b);
         return dateB.compareTo(dateA);
       });
 
@@ -80,8 +99,7 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
         final List<Future<Map<String, dynamic>>> tasks = allCompletedReqs.map((req) async {
           final requestFee = double.tryParse(req['requestfee']?.toString() ?? '0.0') ?? 0.0;
           final driverShare = double.parse((requestFee * 0.40).toStringAsFixed(2));
-          final rawDate = req['reqdatetime'] ?? DateTime.now().toIso8601String();
-          final parsedDate = DateTime.parse(rawDate).toLocal();
+          final parsedDate = parseTripDate(req);
 
           final double? dropoffLat = double.tryParse(req['dropofflatitude']?.toString() ?? req['dropoff_latitude']?.toString() ?? '');
           final double? dropoffLng = double.tryParse(req['dropofflongitude']?.toString() ?? req['dropoff_longitude']?.toString() ?? '');
@@ -111,8 +129,10 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
           final distanceVal = double.tryParse(req['reqdistance']?.toString() ?? '0') ?? 4.5;
           final durationVal = ((distanceVal * 3).round()).clamp(10, 60);
 
+          final bool isPub = req['_source'] == 'pub';
           return {
             'id': req['requestid'] ?? req['pubrequestid'] ?? 999,
+            'source': isPub ? 'pub' : 'user',
             'dateTime': parsedDate,
             'time': DateFormat('HH:mm').format(parsedDate),
             'dateFormatted': DateFormat('dd/MM/yyyy HH:mm').format(parsedDate),
@@ -258,22 +278,22 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
                         _buildFilterSelector(),
                         const SizedBox(height: 20),
 
-                        // Total Earning Banner
+                        // Total Earning Banner (SafeSeat Brand Blue Gradient)
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [Color(0xFF1E1E1E), Color(0xFF3A3A3A)],
+                              colors: [Color(0xFF2340A7), Color(0xFF0044C9)],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.15),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
+                                color: const Color(0xFF2340A7).withOpacity(0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
                               ),
                             ],
                           ),
@@ -411,14 +431,14 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.black : Colors.transparent,
+            color: isSelected ? const Color(0xFF2340A7) : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
             title,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: isSelected ? Colors.white : Colors.black54,
+              color: isSelected ? Colors.white : const Color(0xFF64748B),
               fontSize: 12,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
             ),
@@ -437,83 +457,113 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "กราฟสรุปรายได้รายวัน (บาท)",
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "สถิติรายได้ประจำสัปดาห์",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+            ),
+            Text(
+              "สูงสุด ฿${maxVal.toStringAsFixed(0)}",
+              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Container(
-          height: 180,
-          padding: const EdgeInsets.only(right: 8, top: 12, bottom: 8),
-          child: Row(
-            children: [
-              // Y Axis
-              Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: List.generate(5, (index) {
-                  int labelVal = (yMax - (index * (yMax / 4))).round();
-                  return SizedBox(
-                    width: 32,
-                    child: Text(
-                      "$labelVal",
-                      style: const TextStyle(color: Colors.black45, fontSize: 10),
-                      textAlign: TextAlign.right,
-                    ),
-                  );
-                }),
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-              const SizedBox(width: 8),
-              // Bars
-              Expanded(
-                child: Stack(
+            ],
+          ),
+          child: Column(
+            children: [
+              // Axis and Bars
+              SizedBox(
+                height: 160,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List.generate(5, (index) => Container(
-                        height: 1,
-                        color: Colors.black.withOpacity(0.06),
-                      )),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: List.generate(7, (index) {
-                        double earning = _dailyEarnings[index];
-                        double heightFactor = (earning / yMax).clamp(0.0, 1.0);
-
-                        return Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
+                    // Y-Axis Labels
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 22),
+                      child: SizedBox(
+                        height: 120,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (earning > 0)
+                            Text("฿${yMax.toInt()}", style: const TextStyle(fontSize: 9, color: Color(0xFF94A3B8))),
+                            Text("฿${(yMax / 2).toInt()}", style: const TextStyle(fontSize: 9, color: Color(0xFF94A3B8))),
+                            const Text("฿0", style: TextStyle(fontSize: 9, color: Color(0xFF94A3B8))),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Vertical Separator
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 22),
+                      child: Container(width: 1, height: 120, color: const Color(0xFFE2E8F0)),
+                    ),
+                    const SizedBox(width: 8),
+                    // Bar Items
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: List.generate(7, (index) {
+                          final double earning = _dailyEarnings[index];
+                          final double heightFactor = yMax > 0 ? (earning / yMax).clamp(0.04, 1.0) : 0.04;
+
+                          return Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              SizedBox(
+                                height: 14,
+                                child: earning > 0
+                                    ? Text(
+                                        "฿${earning.toStringAsFixed(0)}",
+                                        style: const TextStyle(
+                                          color: Color(0xFF1E293B),
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                width: 20,
+                                height: 95 * heightFactor,
+                                decoration: BoxDecoration(
+                                  color: earning > 0 ? const Color(0xFF2340A7) : const Color(0xFFE2E8F0),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
                               Text(
-                                "฿${earning.toStringAsFixed(0)}",
+                                weekdays[index],
                                 style: const TextStyle(
-                                  color: Colors.black87,
-                                  fontSize: 9,
+                                  color: Color(0xFF64748B),
+                                  fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            const SizedBox(height: 4),
-                            Container(
-                              width: 20,
-                              height: 110 * heightFactor,
-                              decoration: BoxDecoration(
-                                color: earning > 0 ? const Color(0xFF1E1E1E) : Colors.grey.shade300,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              weekdays[index],
-                              style: const TextStyle(
-                                color: Colors.black54,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        );
-                      }),
+                            ],
+                          );
+                        }),
+                      ),
                     ),
                   ],
                 ),
@@ -534,16 +584,23 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F4F6),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withOpacity(0.05)),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: Colors.black54, size: 18),
+              Icon(icon, color: const Color(0xFF2340A7), size: 18),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
@@ -551,7 +608,7 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black54,
+                    color: Color(0xFF64748B),
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -564,7 +621,7 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: Colors.black,
+              color: Color(0xFF1E293B),
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -574,7 +631,7 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
             subtitle,
             style: const TextStyle(
               fontSize: 10,
-              color: Colors.black45,
+              color: Color(0xFF94A3B8),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -592,9 +649,16 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8F9FA),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.black.withOpacity(0.08)),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -607,17 +671,17 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: Color(0xFF1E293B),
                   ),
                 ),
                 Text(
                   trip['dateFormatted']?.toString().split(' ')[0] ?? '',
-                  style: const TextStyle(fontSize: 10, color: Colors.black45),
+                  style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
                 ),
               ],
             ),
             const SizedBox(width: 12),
-            Container(width: 1, height: 36, color: Colors.black12),
+            Container(width: 1, height: 36, color: const Color(0xFFE2E8F0)),
             const SizedBox(width: 12),
             // Trip Info
             Expanded(
@@ -626,7 +690,7 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.location_on, color: Colors.redAccent, size: 14),
+                      const Icon(Icons.location_on, color: Color(0xFFEF4444), size: 14),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -634,7 +698,7 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Color(0xFF1E293B),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -647,7 +711,7 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
                     children: [
                       Text(
                         "${trip['distance']} • ${trip['duration']}",
-                        style: const TextStyle(fontSize: 11, color: Colors.black54),
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
                       ),
                       if (isLadyMode) ...[
                         const SizedBox(width: 6),
@@ -680,13 +744,13 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9),
+                    color: const Color(0xFFD1FAE5),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: const Text(
                     "เสร็จสิ้น",
                     style: TextStyle(
-                      color: Color(0xFF2E7D32),
+                      color: Color(0xFF059669),
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                     ),
@@ -696,7 +760,7 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
                 Text(
                   "+฿${(trip['earning'] as double).toStringAsFixed(2)}",
                   style: const TextStyle(
-                    color: Colors.black,
+                    color: Color(0xFF059669),
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
@@ -743,27 +807,29 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
               children: [
                 Text(
                   "ใบเสร็จทริป #${trip['id']}",
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9),
+                    color: const Color(0xFFD1FAE5),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
                     "เสร็จสิ้นสมบูรณ์",
-                    style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.bold, fontSize: 12),
+                    style: TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            const Divider(),
+            const Divider(color: Color(0xFFE2E8F0)),
             const SizedBox(height: 12),
 
             _buildDetailRow("วัน-เวลาให้บริการ", trip['dateFormatted'] ?? ''),
             _buildDetailRow("ลูกค้า", trip['clientName'] ?? 'คุณลูกค้า'),
+            _buildDetailRow("ประเภทงาน", trip['source'] == 'pub' ? 'จากร้านค้า (Pub)' : 'จากผู้ใช้ (User)',
+                textColor: trip['source'] == 'pub' ? const Color(0xFFE67E22) : const Color(0xFF2340A7)),
             _buildDetailRow("สถานที่รับ", trip['pickup'] ?? ''),
             _buildDetailRow("สถานที่ส่ง", trip['dropoff'] ?? ''),
             _buildDetailRow("ระยะทาง / เวลา", "${trip['distance']} (${trip['duration']})"),
@@ -772,20 +838,20 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
               _buildDetailRow("โหมดบริการ", "Lady Mode (สำหรับผู้หญิง)", textColor: const Color(0xFFFF1493)),
             
             const SizedBox(height: 12),
-            const Divider(),
+            const Divider(color: Color(0xFFE2E8F0)),
             const SizedBox(height: 12),
 
             _buildDetailRow("ค่าบริการรวมทั้งสิ้น", "฿${(trip['totalFee'] as double).toStringAsFixed(2)}", isBold: true),
-            _buildDetailRow("รายได้สุทธิของคนขับ", "+฿${(trip['earning'] as double).toStringAsFixed(2)}", isBold: true, textColor: const Color(0xFF2E7D32)),
+            _buildDetailRow("รายได้สุทธิของคนขับ", "+฿${(trip['earning'] as double).toStringAsFixed(2)}", isBold: true, textColor: const Color(0xFF059669)),
 
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
+                  backgroundColor: const Color(0xFF2340A7),
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 onPressed: () => Navigator.pop(context),
                 child: const Text("ปิดหน้ารายละเอียด", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),

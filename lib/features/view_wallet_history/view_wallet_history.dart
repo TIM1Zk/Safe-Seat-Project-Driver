@@ -100,16 +100,16 @@ class _WalletHistoryPageState extends State<WalletHistoryPage> {
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF1E1E1E), Color(0xFF3A3A3A)],
+                            colors: [Color(0xFF2340A7), Color(0xFF0044C9)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
+                              color: const Color(0xFF2340A7).withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
                             ),
                           ],
                         ),
@@ -200,8 +200,16 @@ class _WalletHistoryPageState extends State<WalletHistoryPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFE5E5E7),
-        borderRadius: BorderRadius.circular(15),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -211,12 +219,12 @@ class _WalletHistoryPageState extends State<WalletHistoryPage> {
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: Color(0xFF1E293B),
             ),
           ),
           if (icon != null) ...[
             const SizedBox(width: 8),
-            Icon(icon, size: 16, color: Colors.black87),
+            Icon(icon, size: 16, color: const Color(0xFF64748B)),
           ],
         ],
       ),
@@ -234,7 +242,7 @@ class _WalletHistoryPageState extends State<WalletHistoryPage> {
             const SizedBox(height: 20),
             const Text(
               "ยังไม่มีประวัติการทำรายการ",
-              style: TextStyle(color: Colors.black45, fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -243,34 +251,43 @@ class _WalletHistoryPageState extends State<WalletHistoryPage> {
   }
 
   Widget _buildTransactionCard(Map<String, dynamic> tx) {
-    final DateTime createdAt = DateTime.parse(tx['created_at']).toLocal();
+    DateTime createdAt;
+    try {
+      String raw = tx['created_at']?.toString().trim() ?? '';
+      if (!raw.endsWith('Z') && !raw.contains('+') && !RegExp(r'-\d{2}:\d{2}$').hasMatch(raw)) {
+        raw += 'Z';
+      }
+      createdAt = DateTime.parse(raw).toLocal();
+    } catch (_) {
+      createdAt = DateTime.now();
+    }
     final String formattedDate = DateFormat('dd MMM yyyy, HH:mm').format(createdAt);
     final double amount = (tx['amount'] ?? 0).toDouble();
     final String status = tx['status'] == 'success' ? 'สำเร็จ' : 'รอดำเนินการ';
-    final Color statusColor = tx['status'] == 'success' ? const Color(0xFF22C55E) : Colors.orange;
+    final Color statusColor = tx['status'] == 'success' ? const Color(0xFF059669) : const Color(0xFFD97706);
 
     final bool isWithdraw = tx['type'] == 'withdraw';
     final String txTitle = isWithdraw ? "ถอนเงิน (Withdrawal)" : "รายได้จากการให้บริการ (Income)";
     final String amountText = "${isWithdraw ? '-' : '+'} ฿${amount.toStringAsFixed(2)}";
-    final Color amountColor = isWithdraw ? Colors.redAccent : const Color(0xFF22C55E);
+    final Color amountColor = isWithdraw ? const Color(0xFFDC2626) : const Color(0xFF059669);
 
     final Widget iconWidget = isWithdraw
         ? Container(
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: const Color(0xFF4A154B), // SCB Purple
-              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFF00A950), // KBank Green
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: const [
-                Icon(Icons.account_balance_outlined, color: Colors.amber, size: 24),
+                Icon(Icons.account_balance, color: Colors.white, size: 24),
                 Text(
-                  "SCB",
+                  "KBANK",
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 10,
+                    fontSize: 9,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -281,22 +298,30 @@ class _WalletHistoryPageState extends State<WalletHistoryPage> {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: const Color(0xFF22C55E).withOpacity(0.15), // Light green background
-              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFF059669).withOpacity(0.12),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(
               Icons.account_balance_wallet_rounded,
-              color: Color(0xFF22C55E),
+              color: Color(0xFF059669),
               size: 28,
             ),
           );
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFE5E5E7),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -329,7 +354,7 @@ class _WalletHistoryPageState extends State<WalletHistoryPage> {
                 if (isWithdraw) ...[
                   const SizedBox(height: 2),
                   const Text(
-                    "ธนาคารไทยพาณิชย์ **** 1234",
+                    "ธนาคารกสิกรไทย **** 1234",
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.black54,
