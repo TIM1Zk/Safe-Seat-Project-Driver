@@ -32,6 +32,11 @@ The project has recently been refactored to a strict **MVC Architecture**. The m
   - **OSRM Map Router Integration:** Renders accurate, dynamic routes along actual roads using the Open Source Routing Machine (OSRM) API instead of straight lines, drawing distinct paths from driver-to-pickup (blue) and pickup-to-destination (green).
   - **Real-time Job Syncing:** Dynamically updates map states when any teammate accepts a job. Listens to database events and syncs current job state (e.g. status changes: "ถึงจุดนัดหมาย", "กำลังเดินทาง", "เสร็จสิ้น") instantly between buddy devices via Supabase Realtime Broadcast.
   - **Correct Destination Mapping:** Direct extraction of accurate customer pickup and drop-off coordinates from the `requestbyuser` data model, displaying precise locations on both driver/buddy devices.
+- **📊 Service Summary & Earnings Dashboard:**
+  - **🆕 Comprehensive Earnings Analytics:** A dedicated `ServiceSummaryPage` providing drivers with a full overview of their trip earnings, completed ride count, average earnings per ride, and total online minutes.
+  - **🆕 Flexible Period Filters:** Filter earnings data by Today, This Week, This Month, or All Time periods for detailed performance tracking.
+  - **🆕 Weekly Earnings Chart:** Visual bar chart displaying daily earnings breakdown (Monday–Sunday) for quick trend analysis.
+  - **🆕 Trip History List:** Scrollable list of completed trips with detailed information including pickup/destination locations, fare amount, and completion timestamp.
 - **📋 Driver Problem & Expense Reporting:**
   - **Multi-Status Filter:** View and filter submitted reports by status: "ทั้งหมด" (All), "กำลังดำเนินการ" (In Progress), and "เสร็จสิ้น" (Completed).
   - **Detailed Report Sheet:** Interactive modal sheets showing report details, date, status, custom category icons, and receipt images.
@@ -41,10 +46,14 @@ The project has recently been refactored to a strict **MVC Architecture**. The m
   - Redesigned "แก้ไขข้อมูลบัญชี" (`EditProfilePage`) screen matching custom mockup layout to update full name (first name & last name), email, and phone number with strict validation.
   - **🆕 Review & Rating Display:** Displays real-time average review ratings and a list of feedback/comments from users on the profile page.
   - **🆕 User Reported History:** A dedicated tracking screen (`UserReportedHistoryPage`) to view and filter all submitted user-related reports by status ("ทั้งหมด", "กำลังตรวจสอบ", "ตรวจสอบแล้ว", "ไม่อนุมัติ" with red indicator color).
-- **💰 Upgraded Wallet System:** Premium styled UI cards displaying real-time balance, custom withdrawal input flow, and withdrawal transaction history screen.
+- **💰 Upgraded Wallet System:** 
+  - Premium styled UI cards displaying real-time balance, custom withdrawal input flow.
+  - **🆕 Wallet Transaction History:** A dedicated `ViewWalletHistoryPage` for viewing detailed withdrawal and transaction records with status tracking.
 - **📍 Location & Team Tracking:** Live GPS stream and forced sync mechanism for seamless buddy coordination.
 - **🖼️ Image Optimization:** Dynamic JSON parsing utility for resilient profile picture loading across the app.
-- **🎨 Premium UI & Experience Enhancements:** Beautiful white-themed search buddy cards, modern search input fields with subtle shadow borders, and redesigned buddy profile/dashboard cards for a cleaner, more interactive user experience.
+- **🎨 Premium UI & Experience Enhancements:** 
+  - Beautiful white-themed search buddy cards, modern search input fields with subtle shadow borders, and redesigned buddy profile/dashboard cards for a cleaner, more interactive user experience.
+  - **🆕 Centralized Design Token System:** A new `AppTheme` class (`lib/core/theme/app_theme.dart`) providing standardized brand colors, semantic/feedback colors, trip status flow colors, and map marker colors for consistent UI across the entire application.
 - **🏗️ MVC Architecture:** Clean separation of concerns across the full stack.
 
 
@@ -57,16 +66,20 @@ The project has recently been refactored to a strict **MVC Architecture**. The m
 lib/
 ├── core/
 │   ├── network/              # API Service (Dio Client)
-│   └── utils/                # SessionManager (Local storage), ImageUtils, etc.
+│   ├── theme/                # AppTheme - Centralized design tokens & color system
+│   └── utils/                # SessionManager (Local storage), LocationHelper, ImageUtils, etc.
 ├── features/
 │   ├── searchbuddy_page/     # Buddy search & Request notifications
 │   ├── Mybuddy_page/         # Active buddy details & Team management
 │   ├── Listdriverreport_page/# Driver problem & expense reporting interface
-│   ├── login_page/           # Authentication flow
-│   ├── profile_page/         # User profile, vehicle card, and user reported history
-│   ├── view_wallet_balance/  # Dashboard for wallet
+│   ├── login_page/           # Authentication flow (with data/services layer)
+│   ├── map_page/             # Map routing, GPS tracking & Report user page
+│   ├── profile_page/         # User profile, vehicle card, driver detail & user reported history
+│   ├── service_summary/      # Earnings analytics dashboard with period filters & charts
+│   ├── view_wallet_balance/  # Dashboard for wallet balance
+│   ├── view_wallet_history/  # Wallet transaction & withdrawal history
 │   ├── withdraw_wallet_page/ # Withdrawal interface
-│   ├── edit_profile_page/    # Phone number modification interface
+│   ├── edit_profile_page/    # Account profile modification interface
 │   ├── edit_car_page/        # Vehicle details modification interface
 │   └── loading_screen/       # Loader & auto-login check on startup
 └── main.dart                 # App entry point & configuration
@@ -78,6 +91,7 @@ safeseat_backend/
 ├── src/
 │   ├── controllers/          # buddyRequestController.js, driverReportController.js, userController.js, etc.
 │   ├── models/               # buddyRequestModel.js, driverReportModel.js, userModel.js, authModel.js
+│   ├── services/             # dispatcherService.js - Job dispatching & real-time coordination
 │   ├── routes/               # buddyRequestRoutes.js, driverReportRoutes.js, userRoutes.js, etc.
 │   └── index.js              # Express app entry point
 ```
@@ -129,9 +143,10 @@ safeseat_backend/
 
 ## 🛠️ Built With
 
-* **Frontend:** [Flutter](https://flutter.dev/), [Dio](https://pub.dev/packages/dio)
+* **Frontend:** [Flutter](https://flutter.dev/), [Dio](https://pub.dev/packages/dio), [Supabase Flutter](https://pub.dev/packages/supabase_flutter), [Flutter Map](https://pub.dev/packages/flutter_map)
 * **Backend:** [Node.js](https://nodejs.org/), [Express.js](https://expressjs.com/)
 * **Database & Auth:** [Supabase](https://supabase.io/) (PostgreSQL)
+* **Maps & Routing:** [OSRM](http://project-osrm.org/) (Open Source Routing Machine)
 
 ---
 
