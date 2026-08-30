@@ -48,7 +48,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const accentColor = Color(0xFF7CE5FF); // Frosted Blue
+    const accentColor = Color(0xFF2340A7); // Primary Brand Blue #2340A7
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -63,9 +63,9 @@ class _LoadingScreenState extends State<LoadingScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFFF8F9FA),
+                  Color(0xFFF8FAFC),
                   Colors.white,
-                  Color(0xFFF1F3F5),
+                  Color(0xFFF1F5F9),
                 ],
               ),
             ),
@@ -78,7 +78,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFF7CE5FF).withOpacity(0.15),
+                color: const Color(0xFF2340A7).withOpacity(0.12),
               ),
             ),
           ),
@@ -90,7 +90,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFF7CE5FF).withOpacity(0.08),
+                color: const Color(0xFF2563EB).withOpacity(0.08),
               ),
             ),
           ),
@@ -112,44 +112,48 @@ class _LoadingScreenState extends State<LoadingScreen> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 20,
-                        spreadRadius: 2,
+                        color: const Color(0xFF2340A7).withOpacity(0.12),
+                        blurRadius: 30,
+                        spreadRadius: 5,
                       ),
                     ],
                   ),
                   child: const Icon(
                     Icons.drive_eta_rounded,
                     size: 80,
-                    color: Colors.black87,
+                    color: Color(0xFF2340A7),
                   ),
                 ),
-                const SizedBox(height: 35),
-                // App Title
+                const SizedBox(height: 30),
                 const Text(
-                  'Safe Seat',
+                  "Safe Seat Driver",
                   style: TextStyle(
-                    fontSize: 40,
+                    color: Color(0xFF1E293B),
+                    fontSize: 32,
                     fontWeight: FontWeight.w900,
-                    color: Colors.black87,
                     letterSpacing: -0.5,
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  'DRIVER EDITION',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black54,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 4,
+                const Text(
+                  "ระบบผู้ช่วยคู่หูคนขับอัจฉริยะ",
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 16,
+                    letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(height: 80),
-                // Loading Indicator (Black)
-                const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black87),
-                  strokeWidth: 3.5,
+                const SizedBox(height: 60),
+
+                // Sleek, modern glowing progress indicator
+                Container(
+                  width: 45,
+                  height: 45,
+                  padding: const EdgeInsets.all(4),
+                  child: const CircularProgressIndicator(
+                    strokeWidth: 3.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2340A7)),
+                  ),
                 ),
               ],
             ),

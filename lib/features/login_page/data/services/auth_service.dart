@@ -17,6 +17,9 @@ class AuthService {
       }
       return null;
     } on DioException catch (e) {
+      if (e.response?.data != null && e.response?.data is Map && e.response?.data['error'] != null) {
+        throw e.response!.data['error'].toString();
+      }
       if (e.response?.statusCode == 401) {
         throw 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
       }

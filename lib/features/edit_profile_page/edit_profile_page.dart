@@ -241,19 +241,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      "รูปโปรไฟล์",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Divider(color: Colors.black, thickness: 1),
-                    const SizedBox(height: 20),
-
                     // ชื่อ
                     const Text(
                       "ชื่อ",
@@ -276,29 +263,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     ),
                     const SizedBox(height: 24),
 
-                    // หมายเลขโทรศัพท์มือถือ
+                    // หมายเลขโทรศัพท์มือถือ (แก้ไขไม่ได้)
                     const Text(
                       "หมายเลขโทรศัพท์มือถือ",
                       style: TextStyle(fontSize: 14, color: Colors.grey),
                     ),
-                    const SizedBox(height: 4),
-                    InkWell(
-                      onTap: _showEditPhoneDialog,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              _phoneNo,
-                              style: const TextStyle(fontSize: 18, color: Colors.black, fontWeight: FontWeight.w500),
-                            ),
-                            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.black),
-                          ],
-                        ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        _phoneNo,
+                        style: const TextStyle(fontSize: 18, color: Colors.black54, fontWeight: FontWeight.w500),
                       ),
                     ),
-                    const Divider(height: 1, color: Colors.black, thickness: 1.5),
+                    const Divider(height: 1, color: Colors.grey, thickness: 1.0),
                     const SizedBox(height: 24),
 
                     // ที่อยู่อีเมล

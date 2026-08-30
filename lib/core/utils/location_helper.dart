@@ -17,8 +17,8 @@ class LocationHelper {
     try {
       final dio = Dio(
         BaseOptions(
-          connectTimeout: const Duration(seconds: 4),
-          receiveTimeout: const Duration(seconds: 4),
+          connectTimeout: const Duration(seconds: 8),
+          receiveTimeout: const Duration(seconds: 8),
         ),
       );
 
@@ -29,10 +29,11 @@ class LocationHelper {
           'lat': lat,
           'lon': lng,
           'accept-language': 'th',
+          'addressdetails': 1,
         },
         options: Options(
           headers: {
-            'User-Agent': 'SafeSeatApp/1.0',
+            'User-Agent': 'SafeSeatDriverApp/2.0 (contact@safeseat.app)',
           },
         ),
       );
@@ -67,6 +68,7 @@ class LocationHelper {
                 address['town'] ??
                 address['district'] ??
                 address['county'] ??
+                address['state_district'] ??
                 address['province'] ??
                 address['state'];
 
@@ -87,7 +89,7 @@ class LocationHelper {
           if (result == null && displayName != null) {
             final parts = displayName.toString().split(',');
             if (parts.isNotEmpty) {
-              result = parts.take(2).join(',').trim();
+              result = parts.take(2).join(', ').trim();
             }
           }
 

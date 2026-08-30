@@ -167,6 +167,42 @@ class DriverProfileDetailPage extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(height: 16),
+
+                // 2.1 Driver Skills Card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE5E5E7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: const [
+                          Icon(Icons.drive_eta_rounded, size: 20, color: Color(0xFF2340A7)),
+                          SizedBox(width: 8),
+                          Text(
+                            "ความสามารถในการขับขี่ (Driver Skills)",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _buildDriverSkillChips(profileData['driverskills']),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 20),
 
                 // 3. Rating Summary Card
@@ -394,6 +430,87 @@ class DriverProfileDetailPage extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  List<Widget> _buildDriverSkillChips(dynamic rawSkills) {
+    List<String> skills = [];
+    if (rawSkills != null) {
+      if (rawSkills is List) {
+        skills = rawSkills.map((e) => e.toString()).toList();
+      } else if (rawSkills is String && rawSkills.trim().isNotEmpty) {
+        try {
+          final decoded = rawSkills.trim();
+          if (decoded.startsWith('[') && decoded.endsWith(']')) {
+            // handle JSON string
+            final list = decoded
+                .replaceAll('[', '')
+                .replaceAll(']', '')
+                .replaceAll('"', '')
+                .split(',');
+            skills = list.map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+          } else {
+            skills = [decoded];
+          }
+        } catch (_) {
+          skills = [rawSkills.toString()];
+        }
+      }
+    }
+
+    if (skills.isEmpty) {
+      skills = ["ขับขี่ทั่วไป"];
+    }
+
+    return skills.map((skill) {
+      IconData icon = Icons.check_circle_outline_rounded;
+      String label = skill;
+      
+      final lower = skill.toLowerCase();
+      if (lower.contains('ev') || lower.contains('electric') || lower.contains('ไฟฟ้า')) {
+        icon = Icons.electric_car_rounded;
+        if (!label.contains('ไฟฟ้า') && !label.contains('EV')) label = 'รถยนต์ไฟฟ้า ($skill)';
+      } else if (lower.contains('auto') || lower.contains('ออโต้')) {
+        icon = Icons.bolt_rounded;
+        if (!label.contains('เกียร์')) label = 'เกียร์ออโต้ ($skill)';
+      } else if (lower.contains('manual') || lower.contains('ธรรมดา') || lower.contains('กระปุก')) {
+        icon = Icons.tune_rounded;
+        if (!label.contains('เกียร์')) label = 'เกียร์ธรรมดา ($skill)';
+      }
+
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: const Color(0xFF2340A7).withOpacity(0.3),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: const Color(0xFF2340A7)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList();
   }
 
   String _getThaiMonth(int month) {

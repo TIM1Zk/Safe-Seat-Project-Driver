@@ -86,7 +86,7 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('เกิดข้อผิดพลาด: $e'),
+            content: Text('$e'),
             backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -117,15 +117,19 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   String? _validatePassword(String? value) {
+    // 4. ต้องไม่เป็นค่าว่าง
     if (value == null || value.isEmpty) {
       return 'กรุณากรอกรหัสผ่าน';
     }
+    // 3. ต้องไม่มีเว้นวรรค หรือช่องว่าง
     if (value.contains(RegExp(r'\s'))) {
       return 'ต้องไม่มีเว้นวรรค หรือช่องว่าง';
     }
-    if (value.length < 8 || value.length > 30) {
-      return 'ต้องมีความยาวตั้งแต่ 8 - 30 ตัวอักษร';
+    // 2. ต้องมีความยาวตั้งแต่ 8 - 50 ตัวอักษร
+    if (value.length < 8 || value.length > 50) {
+      return 'ต้องมีความยาวตั้งแต่ 8 - 50 ตัวอักษร';
     }
+    // 1. ต้องเป็นอักษรอังกฤษตัวเลข รวมอักขระพิเศษ[!#_.]
     if (!RegExp(r'^[a-zA-Z0-9!#_.]+$').hasMatch(value)) {
       return 'ต้องเป็นอักษรอังกฤษ ตัวเลข และอักขระพิเศษ [!#_.] เท่านั้น';
     }
@@ -140,7 +144,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    const accentColor = Color(0xFF7CE5FF); // Frosted Blue
+    const accentColor = Color(0xFF2340A7); // SafeSeat Primary Brand Blue #2340A7
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -155,9 +159,9 @@ class _LoginPageState extends State<LoginPage> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFFF8F9FA),
+                  Color(0xFFF8FAFC),
                   Colors.white,
-                  Color(0xFFF1F3F5),
+                  Color(0xFFF1F5F9),
                 ],
               ),
             ),
@@ -170,7 +174,7 @@ class _LoginPageState extends State<LoginPage> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: accentColor.withOpacity(0.15),
+                color: accentColor.withOpacity(0.12),
               ),
             ),
           ),
@@ -182,7 +186,7 @@ class _LoginPageState extends State<LoginPage> {
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: accentColor.withOpacity(0.08),
+                color: const Color(0xFF2563EB).withOpacity(0.08),
               ),
             ),
           ),
@@ -221,7 +225,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
+                                  color: const Color(0xFF2340A7).withOpacity(0.12),
                                   blurRadius: 20,
                                   spreadRadius: 2,
                                 ),
@@ -230,24 +234,24 @@ class _LoginPageState extends State<LoginPage> {
                             child: const Icon(
                               Icons.drive_eta_rounded,
                               size: 70,
-                              color: Colors.black87,
+                              color: Color(0xFF2340A7),
                             ),
                           ),
                           const SizedBox(height: 30),
                           const Text(
                             "Safe Seat Driver",
                             style: TextStyle(
-                              color: Colors.black87,
+                              color: Color(0xFF1E293B),
                               fontSize: 36,
                               fontWeight: FontWeight.w900,
                               letterSpacing: -0.5,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Text(
+                          const Text(
                             "พรีเมียมแพลตฟอร์มสำหรับคนขับมืออาชีพ",
                             style: TextStyle(
-                              color: Colors.black54,
+                              color: Color(0xFF64748B),
                               fontSize: 15,
                               letterSpacing: 0.5,
                             ),
@@ -265,15 +269,15 @@ class _LoginPageState extends State<LoginPage> {
                         child: Container(
                           padding: const EdgeInsets.all(25),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.4),
+                            color: Colors.white.withOpacity(0.8),
                             borderRadius: BorderRadius.circular(30),
                             border: Border.all(
-                              color: Colors.black.withOpacity(0.08),
+                              color: const Color(0xFFE2E8F0),
                               width: 1.5,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.03),
+                                color: Colors.black.withOpacity(0.04),
                                 blurRadius: 30,
                               ),
                             ],
@@ -309,7 +313,7 @@ class _LoginPageState extends State<LoginPage> {
                                     borderRadius: BorderRadius.circular(18),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.15),
+                                        color: const Color(0xFF2340A7).withOpacity(0.3),
                                         blurRadius: 20,
                                         offset: const Offset(0, 10),
                                       ),
@@ -318,7 +322,7 @@ class _LoginPageState extends State<LoginPage> {
                                   child: ElevatedButton(
                                     onPressed: isloading ? null : _handleLogin,
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.black,
+                                      backgroundColor: const Color(0xFF2340A7),
                                       foregroundColor: Colors.white,
                                       elevation: 0,
                                       shape: RoundedRectangleBorder(

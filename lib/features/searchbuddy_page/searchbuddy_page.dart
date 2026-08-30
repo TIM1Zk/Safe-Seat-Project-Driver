@@ -23,7 +23,7 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
   Timer? _debounce;
   Timer? _refreshTimer;
 
-  final List<String> _categories = ['ทั้งหมด', 'ใกล้ฉัน'];
+  final List<String> _categories = ['ทั้งหมด', 'ใกล้ฉัน', 'บัดดี้ล่าสุด'];
 
   @override
   void initState() {
@@ -198,7 +198,7 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
                                       child: Container(
                                         padding: const EdgeInsets.all(10),
                                         decoration: const BoxDecoration(
-                                          color: Color(0xFF2E7D32),
+                                          color: Color(0xFF059669),
                                           shape: BoxShape.circle,
                                         ),
                                         child: const Icon(
@@ -218,7 +218,7 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
                                       child: Container(
                                         padding: const EdgeInsets.all(10),
                                         decoration: const BoxDecoration(
-                                          color: Colors.redAccent,
+                                          color: Color(0xFFDC2626),
                                           shape: BoxShape.circle,
                                         ),
                                         child: const Icon(
@@ -246,6 +246,21 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
   Future<void> _fetchBuddies({String query = ''}) async {
     setState(() => _isLoading = true);
     try {
+      if (_selectedCategory == 'บัดดี้ล่าสุด') {
+        final response = await ApiService.get('/buddy-team/recent/${widget.currentUsername}');
+        if (response.statusCode == 200) {
+          List<dynamic> list = response.data is List ? response.data : [];
+          if (query.isNotEmpty) {
+            list = list.where((b) {
+              final name = "${b['firstname'] ?? ''} ${b['lastname'] ?? ''} ${b['username'] ?? ''}".toLowerCase();
+              return name.contains(query.toLowerCase());
+            }).toList();
+          }
+          setState(() => _buddies = list);
+        }
+        return;
+      }
+
       final categoryApi = _selectedCategory == 'ใกล้ฉัน' ? 'nearby' : 'all';
       Map<String, dynamic> params = {
         if (query.isNotEmpty) 'search': query,
@@ -362,53 +377,18 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
               const SizedBox(height: 14),
 
               // 3. Category Filter Chips
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: _categories.map((category) {
-                    final isSelected = _selectedCategory == category;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() => _selectedCategory = category);
-                          _fetchBuddies(query: _searchController.text);
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: isSelected ? Colors.black : const Color(0xFFF5F5F7),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isSelected ? Colors.black : Colors.black12,
-                            ),
-                          ),
-                          child: Text(
-                            category,
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.black87,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
+              _buildCategoryChips(),
 
               const SizedBox(height: 16),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
-                child: Divider(height: 1),
+                child: Divider(height: 1, color: Color(0xFFE2E8F0)),
               ),
 
               // 4. Buddies List
               Expanded(
                 child: _isLoading
-                    ? const Center(child: CircularProgressIndicator(color: Colors.black))
+                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF2340A7)))
                     : _buddies.isEmpty
                         ? _buildEmptyState()
                         : ListView.builder(
@@ -426,17 +406,71 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
     );
   }
 
+  Widget _buildCategoryChips() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: _categories.map((category) {
+          final isSelected = _selectedCategory == category;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _selectedCategory = category);
+                _fetchBuddies(query: _searchController.text);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? const Color(0xFF2340A7) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected ? const Color(0xFF2340A7) : const Color(0xFFE2E8F0),
+                  ),
+                  boxShadow: [
+                    if (!isSelected)
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.02),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                  ],
+                ),
+                child: Text(
+                  category,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : const Color(0xFF64748B),
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   Widget _buildIconBtn(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(9),
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F5F7),
+          color: Colors.white,
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.black12),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child: Icon(icon, color: Colors.black, size: 20),
+        child: Icon(icon, color: const Color(0xFF2340A7), size: 20),
       ),
     );
   }
@@ -449,11 +483,18 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
           Container(
             padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
-              color: const Color(0xFFF5F5F7),
+              color: Colors.white,
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.black12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            child: const Icon(Icons.notifications_none, color: Colors.black, size: 20),
+            child: const Icon(Icons.notifications_none, color: Color(0xFF2340A7), size: 20),
           ),
           if (_pendingRequests.isNotEmpty)
             Positioned(
@@ -461,7 +502,7 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
               top: 0,
               child: Container(
                 padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                decoration: const BoxDecoration(color: Color(0xFFDC2626), shape: BoxShape.circle),
                 constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                 child: Text(
                   '${_pendingRequests.length}', 
@@ -481,25 +522,32 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
       children: [
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFF5F5F7),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: _searchError != null ? Colors.redAccent : Colors.black12,
+              color: _searchError != null ? const Color(0xFFDC2626) : const Color(0xFFE2E8F0),
               width: _searchError != null ? 1.5 : 1.0,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: TextField(
             controller: _searchController,
             onChanged: _onSearchChanged,
             keyboardType: TextInputType.phone,
-            style: const TextStyle(color: Colors.black, fontSize: 15),
+            style: const TextStyle(color: Color(0xFF1E293B), fontSize: 15),
             decoration: InputDecoration(
               hintText: "ค้นหาด้วยหมายเลขโทรศัพท์ (10 หลัก)...",
-              hintStyle: const TextStyle(color: Colors.black38, fontSize: 13),
-              prefixIcon: const Icon(Icons.phone_android_rounded, color: Colors.black54, size: 20),
+              hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+              prefixIcon: const Icon(Icons.phone_android_rounded, color: Color(0xFF2340A7), size: 20),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.black54, size: 18),
+                      icon: const Icon(Icons.clear, color: Color(0xFF64748B), size: 18),
                       onPressed: () {
                         _searchController.clear();
                         setState(() => _searchError = null);
@@ -518,11 +566,11 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
             padding: const EdgeInsets.only(left: 4),
             child: Row(
               children: [
-                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 14),
+                const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 14),
                 const SizedBox(width: 4),
                 Text(
                   _searchError!,
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w500),
+                  style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12, fontWeight: FontWeight.w500),
                 ),
               ],
             ),
@@ -541,15 +589,22 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F7),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 28,
-            backgroundColor: Colors.grey.shade300,
+            backgroundColor: const Color(0xFFE2E8F0),
             backgroundImage: NetworkImage(image),
             onBackgroundImageError: (_, __) {},
           ),
@@ -567,7 +622,7 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
-                          color: Colors.black,
+                          color: Color(0xFF1E293B),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -575,13 +630,13 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E9),
+                        color: const Color(0xFFD1FAE5),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         distanceStr,
                         style: const TextStyle(
-                          color: Color(0xFF2E7D32),
+                          color: Color(0xFF059669),
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
@@ -592,18 +647,19 @@ class _SearchbuddyPageState extends State<SearchbuddyPage> {
                 const SizedBox(height: 2),
                 Text(
                   "@${buddy['username'] ?? ''}",
-                  style: const TextStyle(color: Colors.black45, fontSize: 12),
+                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
-                  height: 38,
+                  height: 40,
                   child: ElevatedButton(
                     onPressed: () => _sendRequest(buddy['username']),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
+                      backgroundColor: const Color(0xFF2340A7),
+                      foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       elevation: 0,
                     ),
