@@ -267,9 +267,18 @@ class _WalletHistoryPageState extends State<WalletHistoryPage> {
     final Color statusColor = tx['status'] == 'success' ? const Color(0xFF059669) : const Color(0xFFD97706);
 
     final bool isWithdraw = tx['type'] == 'withdraw';
-    final String txTitle = isWithdraw ? "ถอนเงิน (Withdrawal)" : "รายได้จากการให้บริการ (Income)";
-    final String amountText = "${isWithdraw ? '-' : '+'} ฿${amount.toStringAsFixed(2)}";
-    final Color amountColor = isWithdraw ? const Color(0xFFDC2626) : const Color(0xFF059669);
+    final bool isCommission = tx['type'] == 'commission';
+    final bool isDebit = isWithdraw || isCommission;
+
+    String txTitle = "รายได้จากการให้บริการ (Income)";
+    if (isWithdraw) {
+      txTitle = "ถอนเงิน (Withdrawal)";
+    } else if (isCommission) {
+      txTitle = "หักค่าคอมมิชชันเงินสด (Commission Fee)";
+    }
+
+    final String amountText = "${isDebit ? '-' : '+'} ฿${amount.toStringAsFixed(2)}";
+    final Color amountColor = isDebit ? const Color(0xFFDC2626) : const Color(0xFF059669);
 
     final Widget iconWidget = isWithdraw
         ? Container(
@@ -294,19 +303,33 @@ class _WalletHistoryPageState extends State<WalletHistoryPage> {
               ],
             ),
           )
-        : Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: const Color(0xFF059669).withOpacity(0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.account_balance_wallet_rounded,
-              color: Color(0xFF059669),
-              size: 28,
-            ),
-          );
+        : (isCommission
+            ? Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.receipt_long_rounded,
+                  color: Color(0xFFDC2626),
+                  size: 28,
+                ),
+              )
+            : Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF059669).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.account_balance_wallet_rounded,
+                  color: Color(0xFF059669),
+                  size: 28,
+                ),
+              ));
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),

@@ -1,6 +1,7 @@
 import 'package:mobile_project/core/utils/image_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mobile_project/core/theme/app_theme.dart';
 import 'package:mobile_project/features/Listdriverreport_page/Listdriverreport_page.dart';
 import 'package:mobile_project/core/network/api_service.dart';
 import 'package:mobile_project/core/utils/session_manager.dart';
@@ -30,13 +31,13 @@ class ProfilePage extends StatelessWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF8FAFC),
         body: FutureBuilder<Map<String, dynamic>?>(
           future: getProfileData(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(
-                child: CircularProgressIndicator(color: Colors.black),
+                child: CircularProgressIndicator(color: AppTheme.primaryBrand),
               );
             }
 
@@ -44,7 +45,7 @@ class ProfilePage extends StatelessWidget {
               return const Center(
                 child: Text(
                   "ไม่พบข้อมูลโปรไฟล์",
-                  style: TextStyle(color: Colors.black, fontSize: 18),
+                  style: TextStyle(color: Color(0xFF1E293B), fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               );
             }
@@ -59,7 +60,7 @@ class ProfilePage extends StatelessWidget {
             return SafeArea(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
+                  horizontal: 20,
                   vertical: 16,
                 ),
                 child: Column(
@@ -71,28 +72,63 @@ class ProfilePage extends StatelessWidget {
                         IconButton(
                           padding: EdgeInsets.zero,
                           alignment: Alignment.centerLeft,
-                          icon: const Icon(
-                            Icons.arrow_back_ios_new,
-                            color: Colors.black,
-                            size: 26,
+                          icon: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.arrow_back_ios_new,
+                              color: AppTheme.textPrimary,
+                              size: 18,
+                            ),
                           ),
                           onPressed: () => Navigator.pop(context),
                         ),
+                        const SizedBox(width: 8),
                         const Text(
-                          "Profile",
+                          "โปรไฟล์คนขับ",
                           style: TextStyle(
-                            fontSize: 28,
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD1FAE5),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.verified, color: Color(0xFF059669), size: 16),
+                              SizedBox(width: 4),
+                              Text(
+                                "ยืนยันแล้ว",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF059669),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Container(height: 2, color: Colors.grey.withOpacity(0.2)),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
 
-                    // 2. Profile Card
+                    // 2. Profile Card with Brand Theme
                     GestureDetector(
                       onTap: () {
                         Navigator.push(
@@ -106,28 +142,45 @@ class ProfilePage extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE5E5E7),
-                          borderRadius: BorderRadius.circular(20),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF2340A7), Color(0xFF1E3A8A)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF2340A7).withOpacity(0.28),
+                              blurRadius: 18,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
                         ),
                         child: Row(
                           children: [
-                            CircleAvatar(
-                              radius: 30,
-                              backgroundColor: const Color(0xFFD1D1D6),
-                              backgroundImage: data['regisimagepath'] != null
-                                  ? NetworkImage(
-                                      ImageUtils.getProfileImageUrl(
-                                        data['regisimagepath'],
-                                      ),
-                                    )
-                                  : null,
-                              child: data['regisimagepath'] == null
-                                  ? const Icon(
-                                      Icons.person,
-                                      size: 36,
-                                      color: Color(0xFF5856D6),
-                                    )
-                                  : null,
+                            Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withOpacity(0.8), width: 2.5),
+                              ),
+                              child: CircleAvatar(
+                                radius: 32,
+                                backgroundColor: Colors.white.withOpacity(0.2),
+                                backgroundImage: data['regisimagepath'] != null
+                                    ? NetworkImage(
+                                        ImageUtils.getProfileImageUrl(
+                                          data['regisimagepath'],
+                                        ),
+                                      )
+                                    : null,
+                                child: data['regisimagepath'] == null
+                                    ? const Icon(
+                                        Icons.person,
+                                        size: 38,
+                                        color: Colors.white,
+                                      )
+                                    : null,
+                              ),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
@@ -137,44 +190,59 @@ class ProfilePage extends StatelessWidget {
                                   Text(
                                     name,
                                     style: const TextStyle(
-                                      fontSize: 18,
+                                      fontSize: 19,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
+                                      color: Colors.white,
                                     ),
                                   ),
                                   const SizedBox(height: 6),
                                   Row(
                                     children: [
-                                      const Icon(
-                                        Icons.star,
-                                        color: Colors.amber,
-                                        size: 18,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        "${(data['review_stats'] != null && data['review_stats']['average'] != null) ? double.tryParse(data['review_stats']['average'].toString())?.toStringAsFixed(1) ?? '0.0' : '0.0'}",
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black54,
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.18),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.star_rounded,
+                                              color: Colors.amber,
+                                              size: 18,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              "${(data['review_stats'] != null && data['review_stats']['average'] != null) ? double.tryParse(data['review_stats']['average'].toString())?.toStringAsFixed(1) ?? '0.0' : '0.0'}",
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                       const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF2340A7).withOpacity(0.12),
-                                          borderRadius: BorderRadius.circular(6),
-                                        ),
-                                        child: Text(
-                                          _formatSkillsBadge(data['driverskills']),
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF2340A7),
+                                      Flexible(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.18),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Text(
+                                            _formatSkillsBadge(data['driverskills']),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
                                       ),
@@ -183,10 +251,17 @@ class ProfilePage extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            const Icon(
-                              Icons.arrow_forward_ios,
-                              color: Colors.black38,
-                              size: 18,
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                color: Colors.white,
+                                size: 14,
+                              ),
                             ),
                           ],
                         ),
@@ -194,6 +269,7 @@ class ProfilePage extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
 
+                    // 3. Overview Card (Service Summary Quick Access)
                     GestureDetector(
                       onTap: () {
                         Navigator.push(
@@ -206,76 +282,124 @@ class ProfilePage extends StatelessWidget {
                       },
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 20,
-                          horizontal: 24,
-                        ),
+                        padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE5E5E7),
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.03),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: Column(
                           children: [
-                            const Text(
-                              "ภาพรวม",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const Text(
-                              "รายสัปดาห์",
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.black45,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Column(
+                                Row(
                                   children: [
-                                    Text(
-                                      data['acceptance_rate']?.toString() ?? "100.0%",
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF2340A7).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.analytics_outlined,
+                                        color: Color(0xFF2340A7),
+                                        size: 20,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
+                                    const SizedBox(width: 10),
                                     const Text(
-                                      "อัตราการรับ",
+                                      "ภาพรวมการให้บริการ",
                                       style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.black54,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.textPrimary,
                                       ),
                                     ),
                                   ],
                                 ),
-                                Column(
-                                  children: [
+                                Row(
+                                  children: const [
                                     Text(
-                                      data['cancellation_rate']?.toString() ?? "0.0%",
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    const Text(
-                                      "อัตราการยกเลิก",
+                                      "ดูรายละเอียด",
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.black54,
+                                        color: Color(0xFF2563EB),
+                                        fontWeight: FontWeight.bold,
                                       ),
+                                    ),
+                                    SizedBox(width: 4),
+                                    Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: Color(0xFF2563EB),
+                                      size: 16,
                                     ),
                                   ],
                                 ),
                               ],
+                            ),
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  Column(
+                                    children: [
+                                      Text(
+                                        data['acceptance_rate']?.toString() ?? "100.0%",
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF059669),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      const Text(
+                                        "อัตราการรับงาน",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppTheme.textSecondary,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Container(width: 1, height: 32, color: const Color(0xFFE2E8F0)),
+                                  Column(
+                                    children: [
+                                      Text(
+                                        data['cancellation_rate']?.toString() ?? "0.0%",
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFFDC2626),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      const Text(
+                                        "อัตราการยกเลิก",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppTheme.textSecondary,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
@@ -283,43 +407,52 @@ class ProfilePage extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
 
-                    // 4. บัญชีของฉัน (My Account)
+                    // 4. บัญชีของฉัน (My Account) Grid
                     const Text(
-                      "บัญชีของฉัน",
+                      "เมนูด่วนและการจัดการ",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        color: AppTheme.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 20,
-                      runSpacing: 20,
+                    GridView.count(
+                      crossAxisCount: 3,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 14,
+                      crossAxisSpacing: 14,
+                      childAspectRatio: 0.95,
                       children: [
                         _buildGridItem(
-                          Icons.chat_bubble_outline,
+                          Icons.chat_bubble_outline_rounded,
                           "กล่องข้อความ",
+                          const Color(0xFF2563EB),
                           () {},
                         ),
                         _buildGridItem(
                           Icons.calendar_month_outlined,
-                          "ตารางรายการ",
+                          "ตารางงาน",
+                          const Color(0xFF059669),
                           () {},
                         ),
                         _buildGridItem(
-                          Icons.lightbulb_outline,
+                          Icons.lightbulb_outline_rounded,
                           "สิ่งที่น่าสนใจ",
+                          const Color(0xFFD97706),
                           () {},
                         ),
                         _buildGridItem(
-                          Icons.error_outline,
-                          "ศูนย์ความช่วยเหลือ",
+                          Icons.help_outline_rounded,
+                          "ศูนย์ช่วยเหลือ",
+                          const Color(0xFF64748B),
                           () {},
                         ),
                         _buildGridItem(
                           Icons.report_problem_outlined,
                           "ประวัติโดนรายงาน",
+                          const Color(0xFFDC2626),
                           () {
                             Navigator.push(
                               context,
@@ -333,6 +466,7 @@ class ProfilePage extends StatelessWidget {
                         _buildGridItem(
                           Icons.assignment_late_outlined,
                           "ประวัติส่งรายงาน",
+                          const Color(0xFF7C3AED),
                           () {
                             Navigator.push(
                               context,
@@ -345,31 +479,39 @@ class ProfilePage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
 
                     // 5. ศึกษาวิธีการใช้งาน (Learn to Use)
                     const Text(
-                      "ศึกษาวิธีการใช้งาน",
+                      "ศึกษาวิธีการใช้งาน & บทเรียน",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        color: AppTheme.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
 
                     // Combined Insights and Academy/Blog Card
                     Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE5E5E7),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Column(
                         children: [
                           // Top section (Insights)
                           Padding(
-                            padding: const EdgeInsets.all(20),
+                            padding: const EdgeInsets.all(18),
                             child: Row(
                               children: [
                                 Expanded(
@@ -380,122 +522,135 @@ class ProfilePage extends StatelessWidget {
                                       const Text(
                                         "เช็กข้อมูลเชิงลึกเกี่ยวกับรูปแบบการขับขี่ของคุณ",
                                         style: TextStyle(
-                                          fontSize: 15,
+                                          fontSize: 14,
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.black87,
+                                          color: AppTheme.textPrimary,
                                         ),
                                       ),
                                       const SizedBox(height: 12),
                                       ElevatedButton(
                                         onPressed: () {},
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.black,
+                                          backgroundColor: const Color(0xFF2340A7),
                                           foregroundColor: Colors.white,
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 20,
-                                            vertical: 10,
+                                            horizontal: 16,
+                                            vertical: 8,
                                           ),
+                                          elevation: 0,
                                           minimumSize: Size.zero,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              15,
-                                            ),
+                                            borderRadius: BorderRadius.circular(12),
                                           ),
                                         ),
                                         child: const Text(
-                                          "ดูรายงาน",
-                                          style: TextStyle(fontSize: 13),
+                                          "ดูรายงานเชิงลึก",
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 16),
-                                const Icon(
-                                  Icons.assignment_turned_in_outlined,
-                                  size: 64,
-                                  color: Color(0xFF007AFF),
+                                const SizedBox(width: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF2340A7).withOpacity(0.08),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.insights_rounded,
+                                    size: 36,
+                                    color: Color(0xFF2340A7),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
+                          const Divider(height: 1, color: Color(0xFFE2E8F0)),
                           // Bottom section (Academy & Blog)
-                          Material(
-                            color: const Color(0xFF707074),
-                            borderRadius: const BorderRadius.only(
-                              bottomLeft: Radius.circular(20),
-                              bottomRight: Radius.circular(20),
+                          ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF059669).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.school_rounded,
+                                color: Color(0xFF059669),
+                                size: 22,
+                              ),
                             ),
-                            clipBehavior: Clip.antiAlias,
-                            child: Column(
-                              children: [
-                                ListTile(
-                                  leading: const Icon(
-                                    Icons.school,
-                                    color: Colors.white,
-                                    size: 28,
-                                  ),
-                                  title: const Text(
-                                    "Academy",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  subtitle: const Text(
-                                    "แหล่งรวมบทเรียนต่างๆ",
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  trailing: const Icon(
-                                    Icons.arrow_forward_ios,
-                                    color: Colors.white54,
-                                    size: 16,
-                                  ),
-                                  onTap: () {},
-                                ),
-                                const Divider(
-                                  color: Colors.white24,
-                                  height: 1,
-                                  indent: 16,
-                                  endIndent: 16,
-                                ),
-                                ListTile(
-                                  leading: const Icon(
-                                    Icons.article_outlined,
-                                    color: Colors.white,
-                                    size: 28,
-                                  ),
-                                  title: const Text(
-                                    "Driver Blog",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  subtitle: const Text(
-                                    "บทความที่เป็นประโยชน์สำหรับพาร์ทเนอร์",
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  trailing: const Icon(
-                                    Icons.arrow_forward_ios,
-                                    color: Colors.white54,
-                                    size: 16,
-                                  ),
-                                  onTap: () {},
-                                ),
-                              ],
+                            title: const Text(
+                              "SafeSeat Academy",
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
                             ),
+                            subtitle: const Text(
+                              "แหล่งรวมบทเรียนและเคล็ดลับการขับขี่",
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                            trailing: const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              color: Color(0xFF94A3B8),
+                              size: 14,
+                            ),
+                            onTap: () {},
+                          ),
+                          const Divider(
+                            color: Color(0xFFF1F5F9),
+                            height: 1,
+                            indent: 18,
+                            endIndent: 18,
+                          ),
+                          ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2563EB).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.article_rounded,
+                                color: Color(0xFF2563EB),
+                                size: 22,
+                              ),
+                            ),
+                            title: const Text(
+                              "Driver Blog & News",
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              "บทความและข่าวสารสำหรับพาร์ทเนอร์คนขับ",
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                            trailing: const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              color: Color(0xFF94A3B8),
+                              size: 14,
+                            ),
+                            onTap: () {},
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 28),
 
                     // Logout Button (Bottom)
                     SizedBox(
@@ -512,19 +667,27 @@ class ProfilePage extends StatelessWidget {
                           }
                         },
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.red),
+                          side: const BorderSide(color: Color(0xFFFCA5A5)),
+                          backgroundColor: const Color(0xFFFEF2F2),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                        child: const Text(
-                          "ออกจากระบบ",
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.logout_rounded, color: Color(0xFFDC2626), size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              "ออกจากระบบ",
+                              style: TextStyle(
+                                color: Color(0xFFDC2626),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -539,21 +702,34 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildGridItem(IconData icon, String label, VoidCallback onTap) {
+  Widget _buildGridItem(IconData icon, String label, Color iconColor, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: SizedBox(
-        width: 80,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 56,
-              height: 56,
-              decoration: const BoxDecoration(
-                color: Colors.black,
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: Colors.white, size: 26),
+              child: Icon(icon, color: iconColor, size: 22),
             ),
             const SizedBox(height: 8),
             Text(
@@ -562,9 +738,9 @@ class ProfilePage extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: Colors.black87,
+                color: AppTheme.textPrimary,
                 fontSize: 12,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],

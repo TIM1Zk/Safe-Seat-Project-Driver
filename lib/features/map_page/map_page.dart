@@ -2184,16 +2184,17 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                 }
               },
               child: Container(
-                width: 56,
-                height: 56,
+                width: 50,
+                height: 50,
                 decoration: BoxDecoration(
-                  color: Colors.black,
+                  color: Colors.white,
                   shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withOpacity(0.08),
                       blurRadius: 8,
-                      offset: const Offset(0, 4),
+                      offset: const Offset(0, 3),
                     ),
                   ],
                 ),
@@ -2201,8 +2202,8 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                   angle: 0.785398, // หมุนเอียง 45 องศาให้ชี้บนขวา
                   child: const Icon(
                     Icons.navigation,
-                    color: Colors.white,
-                    size: 26,
+                    color: Color(0xFF2340A7),
+                    size: 24,
                   ),
                 ),
               ),
@@ -2222,17 +2223,25 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFC0C0C0),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.shield, color: Colors.black, size: 18),
+                    Icon(Icons.shield_rounded, color: Color(0xFF2340A7), size: 18),
                     SizedBox(width: 6),
                     Text(
                       "ศูนย์ความปลอดภัย",
                       style: TextStyle(
-                        color: Colors.black,
+                        color: Color(0xFF1E293B),
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -2267,28 +2276,29 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                 curve: Curves.easeInOut,
                 decoration: BoxDecoration(
                   color: _isLadyMode
-                      ? const Color(0xFFFFF0F5)
-                      : const Color(0xFFB2B2B2),
+                      ? const Color(0xFFFFF5F7)
+                      : Colors.white,
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(24),
-                    topRight: Radius.circular(24),
+                    topLeft: Radius.circular(28),
+                    topRight: Radius.circular(28),
                   ),
                   border: _isLadyMode
-                      ? Border.all(color: const Color(0xFFFF69B4), width: 2)
-                      : null,
+                      ? Border.all(color: const Color(0xFFFFB6C1), width: 1.5)
+                      : Border.all(color: const Color(0xFFE2E8F0)),
                   boxShadow: [
                     BoxShadow(
                       color: _isLadyMode
-                          ? const Color(0xFFFF1493).withOpacity(0.3)
-                          : Colors.black26,
-                      blurRadius: 12,
-                      spreadRadius: 3,
+                          ? const Color(0xFFFF1493).withOpacity(0.15)
+                          : Colors.black.withOpacity(0.08),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                      offset: const Offset(0, -4),
                     ),
                   ],
                 ),
                 padding: const EdgeInsets.only(
-                  top: 10,
-                  bottom: 20,
+                  top: 12,
+                  bottom: 24,
                   left: 20,
                   right: 20,
                 ),
@@ -2309,13 +2319,13 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         alignment: Alignment.center,
                         child: Container(
-                          width: 80,
-                          height: 6,
+                          width: 48,
+                          height: 4,
                           decoration: BoxDecoration(
                             color: _isLadyMode
-                                ? const Color(0xFFFF1493)
-                                : const Color(0xCC000000),
-                            borderRadius: BorderRadius.circular(3),
+                                ? const Color(0xFFFF69B4)
+                                : const Color(0xFFCBD5E1),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
                       ),
@@ -2332,6 +2342,27 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                       },
                       child: Row(
                         children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: _isLadyMode
+                                  ? const Color(0xFFFFE4E1)
+                                  : const Color(0xFFEFF6FF),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              _currentJobStatus == 'going to pickup'
+                                  ? Icons.directions_car_rounded
+                                  : (_currentJobStatus == 'arrived'
+                                        ? Icons.access_time_filled_rounded
+                                        : Icons.navigation_rounded),
+                              color: _isLadyMode
+                                  ? const Color(0xFFFF1493)
+                                  : const Color(0xFF2340A7),
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               _currentJobStatus == 'going to pickup'
@@ -2341,62 +2372,52 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                                         : "กำลังเดินทางไปส่งลูกค้า"),
                               style: TextStyle(
                                 color: _isLadyMode
-                                    ? const Color(0xFFC71585)
-                                    : const Color(0xDD000000),
-                                fontSize: 20,
+                                    ? const Color(0xFFBE185D)
+                                    : const Color(0xFF1E293B),
+                                fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.08),
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF1F5F9),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
                               _isJobSheetCollapsed
-                                  ? Icons.keyboard_arrow_up
-                                  : Icons.keyboard_arrow_down,
-                              color: _isLadyMode
-                                  ? const Color(0xFFC71585)
-                                  : Colors.black87,
-                              size: 24,
+                                  ? Icons.keyboard_arrow_up_rounded
+                                  : Icons.keyboard_arrow_down_rounded,
+                              color: const Color(0xFF64748B),
+                              size: 22,
                             ),
                           ),
                         ],
                       ),
                     ),
                     if (_isLadyMode) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFF69B4), Color(0xFFFF1493)],
-                          ),
+                          color: const Color(0xFFFFE4E1),
                           borderRadius: BorderRadius.circular(20),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x40FF1493),
-                              blurRadius: 6,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
+                          border: Border.all(color: const Color(0xFFFFB6C1)),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.female, color: Colors.white, size: 18),
+                            Icon(Icons.female, color: Color(0xFFFF1493), size: 16),
                             SizedBox(width: 6),
                             Text(
-                              "🌸 Lady Mode (สำหรับผู้หญิงเท่านั้น)",
+                              "Lady Mode (สำหรับผู้หญิง)",
                               style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
+                                color: Color(0xFFFF1493),
+                                fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -2405,167 +2426,195 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                       ),
                     ],
                     if (!_isJobSheetCollapsed) ...[
-                      const SizedBox(height: 15),
+                      const SizedBox(height: 16),
 
                       // ข้อมูลลูกค้า
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 28,
-                            backgroundColor: Colors.white,
-                            backgroundImage:
-                                (_clientProfileImage != null &&
-                                    _clientProfileImage!.isNotEmpty)
-                                ? NetworkImage(_clientProfileImage!)
-                                : null,
-                            child:
-                                (_clientProfileImage == null ||
-                                    _clientProfileImage!.isEmpty)
-                                ? const Icon(
-                                    Icons.person,
-                                    size: 32,
-                                    color: Colors.grey,
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(width: 15),
-                          Expanded(
-                            child: Text(
-                              _clientName ?? "คุณหญิงนุ้งนิ้ม สายบันเทิง",
-                              style: const TextStyle(
-                                color: Color(0xDD000000),
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 24,
+                              backgroundColor: const Color(0xFFE2E8F0),
+                              backgroundImage:
+                                  (_clientProfileImage != null &&
+                                      _clientProfileImage!.isNotEmpty)
+                                  ? NetworkImage(_clientProfileImage!)
+                                  : null,
+                              child:
+                                  (_clientProfileImage == null ||
+                                      _clientProfileImage!.isEmpty)
+                                  ? const Icon(
+                                      Icons.person,
+                                      size: 26,
+                                      color: Color(0xFF94A3B8),
+                                    )
+                                  : null,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _clientName ?? "คุณลูกค้า",
+                                style: const TextStyle(
+                                  color: Color(0xFF1E293B),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              debugPrint("Calling customer: $_clientPhone");
-                            },
-                            child: Container(
-                              width: 48,
-                              height: 48,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.phone,
-                                color: Colors.black,
-                                size: 26,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          GestureDetector(
-                            onTap: () {
-                              if (_isPubJob) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      "ไม่สามารถรายงานลูกค้าเนื่องจากเป็นคำขอจากสถานบันเทิง (Pub)",
+                            GestureDetector(
+                              onTap: () {
+                                debugPrint("Calling customer: $_clientPhone");
+                              },
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2340A7),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF2340A7).withOpacity(0.25),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
                                     ),
-                                    backgroundColor: Colors.orange,
-                                  ),
-                                );
-                                return;
-                              }
-                              if (_activeRequestId != null) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ReportUserPage(
-                                      requestId: _activeRequestId,
-                                    ),
-                                  ),
-                                );
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("ไม่พบข้อมูลคำขอที่จะรายงาน"),
-                                  ),
-                                );
-                              }
-                            },
-                            child: Container(
-                              width: 48,
-                              height: 48,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.report_problem,
-                                color: Colors.redAccent,
-                                size: 26,
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.phone,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () {
+                                if (_isPubJob) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        "ไม่สามารถรายงานลูกค้าเนื่องจากเป็นคำขอจากสถานบันเทิง (Pub)",
+                                      ),
+                                      backgroundColor: Colors.orange,
+                                    ),
+                                  );
+                                  return;
+                                }
+                                if (_activeRequestId != null) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ReportUserPage(
+                                        requestId: _activeRequestId,
+                                      ),
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("ไม่พบข้อมูลคำขอที่จะรายงาน"),
+                                    ),
+                                  );
+                                }
+                              },
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEE2E8),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: const Color(0xFFFECACA)),
+                                ),
+                                child: const Icon(
+                                  Icons.report_problem_rounded,
+                                  color: Color(0xFFDC2626),
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
 
                       // เส้นทางจุดเริ่มต้นและจุดหมายปลายทาง
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Column(
-                            children: [
-                              const Icon(
-                                Icons.location_on,
-                                color: Colors.black87,
-                                size: 28,
-                              ),
-                              Container(
-                                width: 2.5,
-                                height: 60,
-                                color: Colors.black87,
-                              ),
-                              const Icon(
-                                Icons.location_on_outlined,
-                                color: Colors.black87,
-                                size: 28,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(width: 15),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Column(
                               children: [
-                                Text(
-                                  _pickupName ?? "ผับคุณหนูนิ่มประจำเชียงใหม่",
-                                  style: const TextStyle(
-                                    color: Color(0xDD000000),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                const Icon(
+                                  Icons.radio_button_checked_rounded,
+                                  color: Color(0xFFF97316),
+                                  size: 20,
                                 ),
-                                const SizedBox(height: 15),
-                                Text(
-                                  "${(_jobDistance ?? '3.4').replaceAll(RegExp(r'\s*km', caseSensitive: false), '')} Km. Estimate ${_jobDuration ?? '20 Min'}",
-                                  style: const TextStyle(
-                                    color: Colors.black54,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                Container(
+                                  width: 2,
+                                  height: 40,
+                                  color: const Color(0xFFCBD5E1),
                                 ),
-                                const SizedBox(height: 15),
-                                Text(
-                                  _dropoffName ?? "บ้านพักคุณหนูนิ่ม",
-                                  style: const TextStyle(
-                                    color: Color(0xDD000000),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                const Icon(
+                                  Icons.location_on_rounded,
+                                  color: Color(0xFF10B981),
+                                  size: 20,
                                 ),
                               ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _pickupName ?? "จุดรับผู้โดยสาร",
+                                    style: const TextStyle(
+                                      color: Color(0xFF1E293B),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    "${(_jobDistance ?? '0.0').replaceAll(RegExp(r'\s*km', caseSensitive: false), '')} กม. • ประมาณ ${_jobDuration ?? '15 นาที'}",
+                                    style: const TextStyle(
+                                      color: Color(0xFF64748B),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _dropoffName ?? "จุดส่งผู้โดยสาร",
+                                    style: const TextStyle(
+                                      color: Color(0xFF1E293B),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 25),
+                      const SizedBox(height: 20),
 
                       // ปุ่มกดแสดงสถานะ (สไลด์เพื่อยืนยัน)
                       SlideActionBtn(
@@ -2629,6 +2678,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                                   isPubJob: _isPubJob,
                                   distance: _jobDistance,
                                   fare: _jobFee,
+                                  paymentMethod: _paymentMethod,
                                 ),
                               ),
                             );
@@ -2668,28 +2718,29 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
               child: Container(
                 decoration: BoxDecoration(
                   color: _isLadyMode
-                      ? const Color(0xFFFFF0F5)
-                      : const Color(0xFFB2B2B2),
+                      ? const Color(0xFFFFF5F7)
+                      : Colors.white,
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(24),
-                    topRight: Radius.circular(24),
+                    topLeft: Radius.circular(28),
+                    topRight: Radius.circular(28),
                   ),
                   border: _isLadyMode
-                      ? Border.all(color: const Color(0xFFFF69B4), width: 2)
-                      : null,
+                      ? Border.all(color: const Color(0xFFFFB6C1), width: 1.5)
+                      : Border.all(color: const Color(0xFFE2E8F0)),
                   boxShadow: [
                     BoxShadow(
                       color: _isLadyMode
-                          ? const Color(0xFFFF1493).withOpacity(0.35)
-                          : Colors.black26,
-                      blurRadius: 12,
-                      spreadRadius: 3,
+                          ? const Color(0xFFFF1493).withOpacity(0.18)
+                          : Colors.black.withOpacity(0.08),
+                      blurRadius: 24,
+                      spreadRadius: 2,
+                      offset: const Offset(0, -4),
                     ),
                   ],
                 ),
                 padding: const EdgeInsets.only(
-                  top: 10,
-                  bottom: 20,
+                  top: 12,
+                  bottom: 24,
                   left: 20,
                   right: 20,
                 ),
@@ -2698,58 +2749,82 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                   children: [
                     // ขีดสำหรับลากดึง
                     Container(
-                      width: 80,
-                      height: 6,
+                      width: 48,
+                      height: 4,
                       decoration: BoxDecoration(
                         color: _isLadyMode
-                            ? const Color(0xFFFF1493)
-                            : const Color(0xCC000000),
-                        borderRadius: BorderRadius.circular(3),
+                            ? const Color(0xFFFF69B4)
+                            : const Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    const SizedBox(height: 15),
+                    const SizedBox(height: 14),
 
                     // หัวข้อ
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
-                          child: Text(
-                            _isLadyMode
-                                ? "🌸 มีงานใหม่ (Lady Mode)!"
-                                : "มีงานใหม่เข้ามา!",
-                            style: TextStyle(
-                              color: _isLadyMode
-                                  ? const Color(0xFFC71585)
-                                  : const Color(0xDD000000),
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: _isLadyMode
+                                      ? const Color(0xFFFFE4E1)
+                                      : const Color(0xFFEFF6FF),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.notifications_active_rounded,
+                                  color: _isLadyMode
+                                      ? const Color(0xFFFF1493)
+                                      : const Color(0xFF2340A7),
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                _isLadyMode
+                                    ? "🌸 มีงานใหม่ (Lady Mode)!"
+                                    : "มีงานใหม่เข้ามา!",
+                                style: TextStyle(
+                                  color: _isLadyMode
+                                      ? const Color(0xFFBE185D)
+                                      : const Color(0xFF1E293B),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.gesture,
-                              color: _isLadyMode
-                                  ? const Color(0xFFC71585)
-                                  : const Color(0xDD000000),
-                              size: 18,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _jobDistance ?? "0.0 km",
-                              style: TextStyle(
-                                color: _isLadyMode
-                                    ? const Color(0xFFC71585)
-                                    : const Color(0xDD000000),
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.near_me_rounded,
+                                color: Color(0xFF2563EB),
+                                size: 14,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              Text(
+                                _jobDistance ?? "0.0 km",
+                                style: const TextStyle(
+                                  color: Color(0xFF1E293B),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -2763,28 +2838,20 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFF69B4), Color(0xFFFF1493)],
-                            ),
+                            color: const Color(0xFFFFE4E1),
                             borderRadius: BorderRadius.circular(20),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x40FF1493),
-                                blurRadius: 6,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
+                            border: Border.all(color: const Color(0xFFFFB6C1)),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.female, color: Colors.white, size: 18),
+                              Icon(Icons.female, color: Color(0xFFFF1493), size: 16),
                               SizedBox(width: 6),
                               Text(
-                                "🌸 Lady Mode (สำหรับผู้หญิงเท่านั้น)",
+                                "Lady Mode (สำหรับผู้หญิงเท่านั้น)",
                                 style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
+                                  color: Color(0xFFFF1493),
+                                  fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -2793,219 +2860,216 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 15),
+                    const SizedBox(height: 16),
 
-                    // ข้อมูลลูกค้า
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 28,
-                          backgroundColor: Colors.white,
-                          backgroundImage:
-                              (_clientProfileImage != null &&
-                                  _clientProfileImage!.isNotEmpty)
-                              ? NetworkImage(_clientProfileImage!)
-                              : null,
-                          child:
-                              (_clientProfileImage == null ||
-                                  _clientProfileImage!.isEmpty)
-                              ? const Icon(
-                                  Icons.person,
-                                  size: 32,
-                                  color: Colors.grey,
-                                )
-                              : null,
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: Text(
-                            _clientName ?? "ลูกค้าทั่วไป",
-                            style: const TextStyle(
-                              color: Color(0xDD000000),
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                    // Card 1: ข้อมูลลูกค้า
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 22,
+                            backgroundColor: const Color(0xFFE2E8F0),
+                            backgroundImage:
+                                (_clientProfileImage != null &&
+                                    _clientProfileImage!.isNotEmpty)
+                                ? NetworkImage(_clientProfileImage!)
+                                : null,
+                            child:
+                                (_clientProfileImage == null ||
+                                    _clientProfileImage!.isEmpty)
+                                ? const Icon(
+                                    Icons.person,
+                                    size: 24,
+                                    color: Color(0xFF94A3B8),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              _clientName ?? "ลูกค้าทั่วไป",
+                              style: const TextStyle(
+                                color: Color(0xFF1E293B),
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            debugPrint("Calling customer: $_clientPhone");
-                          },
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.phone,
-                              color: Colors.black,
-                              size: 24,
+                          GestureDetector(
+                            onTap: () {
+                              debugPrint("Calling customer: $_clientPhone");
+                            },
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2340A7),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF2340A7).withOpacity(0.25),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.phone,
+                                color: Colors.white,
+                                size: 18,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 12),
 
-                    // ข้อมูลรถยนต์
-                    Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[400],
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.directions_car,
-                            color: Color(0xDE000000),
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    // Card 2: รายละเอียดรถ, ราคา, เกียร์ ในกล่องเดียว
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Column(
+                        children: [
+                          // ข้อมูลรถยนต์
+                          Row(
                             children: [
-                              Text(
-                                _carDetails ?? "รถยนต์ส่วนบุคคล",
-                                style: const TextStyle(
-                                  color: Color(0xDD000000),
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FF),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.directions_car_rounded,
+                                  color: Color(0xFF2340A7),
+                                  size: 20,
                                 ),
                               ),
-                              Text(
-                                _carSubdetails ?? "ไม่ทราบรายละเอียดรถ",
-                                style: const TextStyle(
-                                  color: Colors.black54,
-                                  fontSize: 13,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _carDetails ?? "รถยนต์ส่วนบุคคล",
+                                      style: const TextStyle(
+                                        color: Color(0xFF1E293B),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      _carSubdetails ?? "ไม่ทราบรายละเอียดรถ",
+                                      style: const TextStyle(
+                                        color: Color(0xFF64748B),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
+                          const Divider(height: 16, color: Color(0xFFE2E8F0)),
 
-                    // ข้อมูลราคา/วิธีการจ่ายเงิน
-                    Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: const BoxDecoration(
-                            color: Colors.black,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.attach_money,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          // ข้อมูลราคา/วิธีการจ่ายเงิน + ข้อมูลเกียร์
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                _jobFee ?? "0.00\$",
-                                style: const TextStyle(
-                                  color: Color(0xDD000000),
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              // ราคา
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFD1FAE5),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(
+                                      Icons.account_balance_wallet_rounded,
+                                      color: Color(0xFF059669),
+                                      size: 18,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _jobFee ?? "0.00 บาท",
+                                        style: const TextStyle(
+                                          color: Color(0xFF059669),
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        _paymentMethod ?? "App Wallet",
+                                        style: const TextStyle(
+                                          color: Color(0xFF64748B),
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                              Text(
-                                _paymentMethod ?? "App Wallet",
-                                style: const TextStyle(
-                                  color: Colors.black54,
-                                  fontSize: 13,
+                              // เกียร์
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      (_gearType != null && _gearType!.contains("EV"))
+                                          ? Icons.electric_car_rounded
+                                          : Icons.settings_rounded,
+                                      color: const Color(0xFF2340A7),
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      _gearType ?? "Auto Gear",
+                                      style: const TextStyle(
+                                        color: Color(0xFF1E293B),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    // ข้อมูลเกียร์ / ประเภทรถ
-                    Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: (_gearType != null && _gearType!.contains("EV"))
-                                ? const Color(0xFF2340A7).withOpacity(0.15)
-                                : Colors.grey[400],
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            (_gearType != null && _gearType!.contains("EV"))
-                                ? Icons.electric_car_rounded
-                                : Icons.settings,
-                            color: (_gearType != null && _gearType!.contains("EV"))
-                                ? const Color(0xFF2340A7)
-                                : const Color(0xDE000000),
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: Text(
-                            _gearType ?? "Auto Gear",
-                            style: const TextStyle(
-                              color: Color(0xDD000000),
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 20),
 
                     // ปุ่มกด Accept / Denial
                     Row(
                       children: [
+                        // ปุ่มปฏิเสธ
                         Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              if (_activeRequestId != null) {
-                                _acceptTeamJob(_activeRequestId);
-                              }
-                              setState(() {
-                                _isJobOfferOpen = false;
-                              });
-                            },
-                            icon: const Icon(
-                              Icons.directions_car,
-                              color: Colors.black,
-                            ),
-                            label: const Text(
-                              "Accept",
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF00FF33),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: ElevatedButton.icon(
+                          flex: 1,
+                          child: OutlinedButton(
                             onPressed: () {
                               if (_teamChannel != null) {
                                 try {
@@ -3024,12 +3088,45 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                                 _isJobOfferOpen = false;
                               });
                             },
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              foregroundColor: const Color(0xFFDC2626),
+                              side: const BorderSide(color: Color(0xFFFECACA)),
+                              backgroundColor: const Color(0xFFFEF2F2),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: const Text(
+                              "ปฏิเสธ",
+                              style: TextStyle(
+                                color: Color(0xFFDC2626),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // ปุ่มรับงาน
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              if (_activeRequestId != null) {
+                                _acceptTeamJob(_activeRequestId);
+                              }
+                              setState(() {
+                                _isJobOfferOpen = false;
+                              });
+                            },
                             icon: const Icon(
-                              Icons.pan_tool,
+                              Icons.check_circle_outline_rounded,
                               color: Colors.white,
+                              size: 20,
                             ),
                             label: const Text(
-                              "ปฏิเสธ",
+                              "รับงานทันที",
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -3037,10 +3134,12 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                               ),
                             ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFDC2626),
+                              backgroundColor: const Color(0xFF2340A7),
+                              foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 14),
+                              elevation: 0,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                             ),
                           ),

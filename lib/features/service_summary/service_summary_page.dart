@@ -806,7 +806,7 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  "ใบเสร็จทริป #${trip['id']}",
+                  "ใบเสร็จทริป ${trip['id']}",
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
                 ),
                 Container(

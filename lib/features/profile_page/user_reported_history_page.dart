@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_project/core/network/api_service.dart';
+import 'package:mobile_project/core/theme/app_theme.dart';
 
 class UserReportedHistoryPage extends StatefulWidget {
   final String username;
@@ -42,7 +44,9 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('โหลดข้อมูลประวัติการรายงานล้มเหลว: $e'),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: AppTheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -85,53 +89,105 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
   Widget build(BuildContext context) {
     final filteredReports = _getFilteredReports();
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text(
-          "ประวัติการรายงานผู้ใช้",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        iconTheme: const IconThemeData(color: Colors.black),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Colors.black87),
-            onPressed: _loadReports,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Filter Tabs
-          _buildFilterTabs(),
-
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-                    ),
-                  )
-                : filteredReports.isEmpty
-                    ? _buildEmptyState()
-                    : RefreshIndicator(
-                        onRefresh: _loadReports,
-                        color: Colors.black,
-                        backgroundColor: Colors.white,
-                        child: ListView.builder(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                          itemCount: filteredReports.length,
-                          itemBuilder: (context, index) {
-                            final report = filteredReports[index];
-                            return _buildReportCard(report);
-                          },
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Top Bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Row(
+                  children: [
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      alignment: Alignment.centerLeft,
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new,
+                          color: AppTheme.textPrimary,
+                          size: 18,
                         ),
                       ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      "ประวัติการส่งรายงาน",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.refresh_rounded, color: AppTheme.textPrimary, size: 18),
+                      ),
+                      onPressed: _loadReports,
+                    ),
+                  ],
+                ),
+              ),
+
+              // Filter Tabs
+              _buildFilterTabs(),
+              const SizedBox(height: 10),
+
+              Expanded(
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryBrand),
+                        ),
+                      )
+                    : filteredReports.isEmpty
+                        ? _buildEmptyState()
+                        : RefreshIndicator(
+                            onRefresh: _loadReports,
+                            color: AppTheme.primaryBrand,
+                            backgroundColor: Colors.white,
+                            child: ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                              itemCount: filteredReports.length,
+                              itemBuilder: (context, index) {
+                                final report = filteredReports[index];
+                                return _buildReportCard(report);
+                              },
+                            ),
+                          ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -139,11 +195,11 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
   Widget _buildFilterTabs() {
     final tabs = ['ทั้งหมด', 'กำลังตรวจสอบ', 'ตรวจสอบแล้ว'];
     return Container(
-      margin: const EdgeInsets.only(top: 10, bottom: 5, left: 20, right: 20),
-      padding: const EdgeInsets.all(5),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F3F5),
-        borderRadius: BorderRadius.circular(15),
+        color: const Color(0xFFE2E8F0),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: tabs.map((tab) {
@@ -157,18 +213,27 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.black : Colors.transparent,
+                  color: isSelected ? const Color(0xFF2340A7) : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFF2340A7).withOpacity(0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Text(
                   tab,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black54,
+                    color: isSelected ? Colors.white : AppTheme.textSecondary,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 13,
                   ),
                 ),
               ),
@@ -184,18 +249,33 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.history_outlined,
-            size: 80,
-            color: Colors.black.withOpacity(0.1),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.assignment_turned_in_outlined,
+              size: 56,
+              color: Color(0xFF94A3B8),
+            ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Text(
-            "ไม่มีประวัติการรายงานผู้ใช้ ($_selectedFilter)",
+            "ไม่มีประวัติการส่งรายงาน ($_selectedFilter)",
+            style: const TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            "รายงานที่คุณส่งเข้ามาจะปรากฏในหน้านี้",
             style: TextStyle(
-              color: Colors.black.withOpacity(0.4),
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+              color: Color(0xFF94A3B8),
+              fontSize: 12,
             ),
           ),
         ],
@@ -231,19 +311,19 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
     return GestureDetector(
       onTap: () => _showReportDetails(report),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 15),
+        margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8F9FA),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: inProgress ? Colors.orange.withOpacity(0.2) : Colors.black.withOpacity(0.06),
-            width: 1.5,
+            color: inProgress ? const Color(0xFFFED7AA) : const Color(0xFFE2E8F0),
+            width: 1.2,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
+              color: Colors.black.withOpacity(0.03),
               blurRadius: 10,
-              offset: const Offset(0, 5),
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -261,12 +341,12 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.05),
+                            color: const Color(0xFF2340A7).withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
                             Icons.assignment_outlined,
-                            color: Colors.black87,
+                            color: Color(0xFF2340A7),
                             size: 18,
                           ),
                         ),
@@ -276,8 +356,8 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
                             typeThai,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: Colors.black87,
-                              fontSize: 16,
+                              color: AppTheme.textPrimary,
+                              fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -287,27 +367,21 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: inProgress
-                          ? Colors.orange.withOpacity(0.1)
+                          ? const Color(0xFFFEF3C7)
                           : (status == 'ไม่อนุมัติ'
-                              ? Colors.red.withOpacity(0.1)
-                              : Colors.green.withOpacity(0.1)),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(
-                        color: inProgress
-                            ? Colors.orange
-                            : (status == 'ไม่อนุมัติ' ? Colors.red : Colors.green),
-                        width: 1,
-                      ),
+                              ? const Color(0xFFFEE2E2)
+                              : const Color(0xFFD1FAE5)),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       status,
                       style: TextStyle(
                         color: inProgress
-                            ? Colors.orange
-                            : (status == 'ไม่อนุมัติ' ? Colors.red : Colors.green),
+                            ? const Color(0xFFD97706)
+                            : (status == 'ไม่อนุมัติ' ? const Color(0xFFDC2626) : const Color(0xFF059669)),
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
@@ -315,42 +389,42 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 12),
               Text(
                 detail,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.black87.withOpacity(0.7),
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
                   fontSize: 13,
                   height: 1.4,
                 ),
               ),
-              const SizedBox(height: 15),
-              Divider(color: Colors.black.withOpacity(0.06), height: 1),
+              const SizedBox(height: 14),
+              const Divider(color: Color(0xFFF1F5F9), height: 1),
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(6),
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      "รหัสงาน: #$requestId",
-                      style: TextStyle(
-                        color: Colors.black54,
+                      "รหัสงาน: $requestId",
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
                         fontSize: 11,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                   Text(
                     formattedDate,
-                    style: TextStyle(
-                      color: Colors.black45,
+                    style: const TextStyle(
+                      color: Color(0xFF94A3B8),
                       fontSize: 11,
                     ),
                   ),
@@ -395,28 +469,28 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
       backgroundColor: Colors.white,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (context) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.6,
+          initialChildSize: 0.65,
           minChildSize: 0.4,
           maxChildSize: 0.9,
           expand: false,
           builder: (context, scrollController) {
             return SingleChildScrollView(
               controller: scrollController,
-              padding: const EdgeInsets.all(25.0),
+              padding: const EdgeInsets.all(24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Center(
                     child: Container(
-                      width: 50,
-                      height: 5,
-                      margin: const EdgeInsets.only(bottom: 25),
+                      width: 44,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
                       decoration: BoxDecoration(
-                        color: Colors.black12,
+                        color: const Color(0xFFCBD5E1),
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
@@ -425,30 +499,41 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        "รายละเอียดการรายงานผู้ใช้",
+                        "รายละเอียดการรายงาน",
                         style: TextStyle(
-                          color: Colors.black87,
+                          color: AppTheme.textPrimary,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close_rounded, color: Colors.black54),
+                        icon: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF1F5F9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close_rounded, color: AppTheme.textSecondary, size: 20),
+                        ),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
                   Row(
                     children: [
                       Expanded(
                         child: Container(
-                          padding: const EdgeInsets.all(15),
+                          padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF8F9FA),
-                            borderRadius: BorderRadius.circular(15),
+                            color: inProgress
+                                ? const Color(0xFFFEF3C7)
+                                : (status == 'ไม่อนุมัติ' ? const Color(0xFFFEE2E2) : const Color(0xFFD1FAE5)),
+                            borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: inProgress ? Colors.orange.withOpacity(0.3) : Colors.green.withOpacity(0.3),
+                              color: inProgress
+                                  ? const Color(0xFFFDE68A)
+                                  : (status == 'ไม่อนุมัติ' ? const Color(0xFFFECACA) : const Color(0xFFA7F3D0)),
                             ),
                           ),
                           child: Column(
@@ -456,14 +541,16 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
                             children: [
                               const Text(
                                 "สถานะการตรวจสอบ",
-                                style: TextStyle(color: Colors.black54, fontSize: 11),
+                                style: TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w500),
                               ),
-                              const SizedBox(height: 5),
+                              const SizedBox(height: 4),
                               Text(
                                 status,
                                 style: TextStyle(
-                                  color: inProgress ? Colors.orange : Colors.green,
-                                  fontSize: 15,
+                                  color: inProgress
+                                      ? const Color(0xFFD97706)
+                                      : (status == 'ไม่อนุมัติ' ? const Color(0xFFDC2626) : const Color(0xFF059669)),
+                                  fontSize: 14,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -471,30 +558,32 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 15),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Container(
-                          padding: const EdgeInsets.all(15),
+                          padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF8F9FA),
-                            borderRadius: BorderRadius.circular(15),
-                            border: Border.all(color: Colors.black.withOpacity(0.08)),
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
                                 "ประเภทการแจ้งเหตุ",
-                                style: TextStyle(color: Colors.black54, fontSize: 11),
+                                style: TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w500),
                               ),
-                              const SizedBox(height: 5),
+                              const SizedBox(height: 4),
                               Text(
                                 typeThai,
                                 style: const TextStyle(
-                                  color: Colors.black87,
-                                  fontSize: 15,
+                                  color: AppTheme.textPrimary,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.bold,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
@@ -506,46 +595,60 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
                   const Text(
                     "รายละเอียดที่แจ้งรายงาน",
                     style: TextStyle(
-                      color: Colors.black87,
+                      color: AppTheme.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(18),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8F9FA),
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(color: Colors.black.withOpacity(0.05)),
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
                     child: Text(
                       detail,
-                      style: TextStyle(
-                        color: Colors.black87.withOpacity(0.8),
+                      style: const TextStyle(
+                        color: AppTheme.textPrimary,
                         fontSize: 14,
                         height: 1.5,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 25),
-                  _buildDetailRow(Icons.confirmation_number_outlined, "รหัสรายงาน", "#$index"),
-                  _buildDetailRow(Icons.local_taxi_rounded, "รหัสงาน", "#$requestId"),
-                  _buildDetailRow(Icons.calendar_month_outlined, "วันที่แจ้งเรื่อง", formattedDate),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildDetailRow(Icons.confirmation_number_outlined, "รหัสรายงาน", "$index"),
+                        const Divider(height: 16, color: Color(0xFFE2E8F0)),
+                        _buildDetailRow(Icons.local_taxi_rounded, "รหัสงาน", "$requestId"),
+                        const Divider(height: 16, color: Color(0xFFE2E8F0)),
+                        _buildDetailRow(Icons.calendar_month_outlined, "วันที่แจ้งเรื่อง", formattedDate),
+                      ],
+                    ),
+                  ),
                   if (imagePath != null && imagePath.isNotEmpty) ...[
-                    const SizedBox(height: 25),
+                    const SizedBox(height: 20),
                     const Text(
                       "ภาพแนบหลักฐาน",
                       style: TextStyle(
-                        color: Colors.black87,
+                        color: AppTheme.textPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 10),
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: BorderRadius.circular(16),
                       child: Image.network(
                         imagePath.startsWith('http') 
                             ? imagePath 
@@ -556,14 +659,14 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
                             height: 100,
-                            color: const Color(0xFFF8F9FA),
+                            color: const Color(0xFFF8FAFC),
                             child: const Center(
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.broken_image_outlined, color: Colors.black26),
+                                  Icon(Icons.broken_image_outlined, color: Color(0xFF94A3B8)),
                                   SizedBox(width: 10),
-                                  Text("ไม่สามารถโหลดภาพหลักฐานได้", style: TextStyle(color: Colors.black26)),
+                                  Text("ไม่สามารถโหลดภาพหลักฐานได้", style: TextStyle(color: Color(0xFF94A3B8))),
                                 ],
                               ),
                             ),
@@ -572,7 +675,7 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 24),
                 ],
               ),
             );
@@ -583,30 +686,25 @@ class _UserReportedHistoryPageState extends State<UserReportedHistoryPage> {
   }
 
   Widget _buildDetailRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.black38, size: 20),
-          const SizedBox(width: 12),
-          Text(
-            "$label:",
-            style: TextStyle(color: Colors.black54, fontSize: 13),
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFF2340A7), size: 18),
+        const SizedBox(width: 10),
+        Text(
+          "$label:",
+          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w500),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: Colors.black87,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.right,
-            ),
-          ),
-        ],
-      ),
+          textAlign: TextAlign.right,
+        ),
+      ],
     );
   }
 }

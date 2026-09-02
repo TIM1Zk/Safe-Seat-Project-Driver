@@ -91,12 +91,12 @@ class _ReportUserPageState extends State<ReportUserPage> {
       return;
     }
 
-    // 3. Validate Report Detail - Block dangerous special characters but allow Thai, English, Numbers & spaces
-    final dangerousCharsRegex = RegExp(r'[<>{}\\|`~\$\^]');
-    if (dangerousCharsRegex.hasMatch(detailText)) {
+    // 3. Validate Report Detail - Allow Thai, English, Numbers, standard punctuation & spaces
+    final allowedTextRegex = RegExp(r'^[a-zA-Z0-9ก-๙\s.,!?:;()\-_\r\n]+$');
+    if (!allowedTextRegex.hasMatch(detailText)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("รายละเอียดต้องเป็นตัวอักษรภาษาไทยและอังกฤษเท่านั้น (ห้ามใช้อักขระพิเศษ)"),
+          content: Text("รายละเอียดต้องเป็นตัวอักษรภาษาไทย ภาษาอังกฤษ หรือตัวเลขเท่านั้น"),
           backgroundColor: Colors.redAccent,
         ),
       );

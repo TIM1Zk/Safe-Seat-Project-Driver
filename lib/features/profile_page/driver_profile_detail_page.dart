@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mobile_project/core/theme/app_theme.dart';
 import 'package:mobile_project/core/utils/image_utils.dart';
 import 'package:mobile_project/features/edit_profile_page/edit_profile_page.dart';
 
@@ -32,7 +33,7 @@ class DriverProfileDetailPage extends StatelessWidget {
       carPlate = profileData['drivercar']['carplate'];
     }
 
-    final subtitleText = "เข้าร่วมเมื่อ $joinDate" + (carPlate.isNotEmpty ? " | $carPlate" : " | รวย 1234");
+    final subtitleText = "เข้าร่วมเมื่อ $joinDate" + (carPlate.isNotEmpty ? " • ทะเบียน $carPlate" : "");
 
     // Review statistics extraction
     final stats = profileData['review_stats'] ?? {};
@@ -57,10 +58,10 @@ class DriverProfileDetailPage extends StatelessWidget {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF8FAFC),
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -70,19 +71,34 @@ class DriverProfileDetailPage extends StatelessWidget {
                     IconButton(
                       padding: EdgeInsets.zero,
                       alignment: Alignment.centerLeft,
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new,
-                        color: Colors.black,
-                        size: 26,
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new,
+                          color: AppTheme.textPrimary,
+                          size: 18,
+                        ),
                       ),
                       onPressed: () => Navigator.pop(context),
                     ),
+                    const SizedBox(width: 8),
                     const Text(
                       "โปรไฟล์ของฉัน",
                       style: TextStyle(
-                        fontSize: 28,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        color: AppTheme.textPrimary,
                       ),
                     ),
                     const Spacer(),
@@ -99,45 +115,61 @@ class DriverProfileDetailPage extends StatelessWidget {
                         );
                       },
                       child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF1C1C1E),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2340A7),
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF2340A7).withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
                         child: const Icon(
-                          Icons.edit,
+                          Icons.edit_rounded,
                           color: Colors.white,
-                          size: 20,
+                          size: 18,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Container(
-                  height: 2,
-                  color: Colors.grey.withOpacity(0.2),
-                ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
                 // 2. Profile Info Card
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE5E5E7),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundColor: const Color(0xFFD1D1D6),
-                        backgroundImage: profileData['regisimagepath'] != null
-                            ? NetworkImage(ImageUtils.getProfileImageUrl(profileData['regisimagepath']))
-                            : null,
-                        child: profileData['regisimagepath'] == null
-                            ? const Icon(Icons.person, size: 36, color: Color(0xFF5856D6))
-                            : null,
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: const Color(0xFF2340A7).withOpacity(0.2), width: 2),
+                        ),
+                        child: CircleAvatar(
+                          radius: 32,
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          backgroundImage: profileData['regisimagepath'] != null
+                              ? NetworkImage(ImageUtils.getProfileImageUrl(profileData['regisimagepath']))
+                              : null,
+                          child: profileData['regisimagepath'] == null
+                              ? const Icon(Icons.person, size: 36, color: Color(0xFF2340A7))
+                              : null,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -149,7 +181,7 @@ class DriverProfileDetailPage extends StatelessWidget {
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: AppTheme.textPrimary,
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -157,7 +189,7 @@ class DriverProfileDetailPage extends StatelessWidget {
                               subtitleText,
                               style: const TextStyle(
                                 fontSize: 13,
-                                color: Colors.black54,
+                                color: AppTheme.textSecondary,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -172,10 +204,18 @@ class DriverProfileDetailPage extends StatelessWidget {
                 // 2.1 Driver Skills Card
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE5E5E7),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,14 +227,14 @@ class DriverProfileDetailPage extends StatelessWidget {
                           Text(
                             "ความสามารถในการขับขี่ (Driver Skills)",
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 15,
                               fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+                              color: AppTheme.textPrimary,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -209,8 +249,16 @@ class DriverProfileDetailPage extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE5E5E7),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,10 +268,10 @@ class DriverProfileDetailPage extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black54,
+                          color: AppTheme.textSecondary,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
                       Row(
                         children: [
                           // Left Rating Score
@@ -232,17 +280,27 @@ class DriverProfileDetailPage extends StatelessWidget {
                               Text(
                                 averageRating.toStringAsFixed(2),
                                 style: const TextStyle(
-                                  fontSize: 32,
+                                  fontSize: 34,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black,
+                                  color: AppTheme.textPrimary,
                                 ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: const [
+                                  Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+                                  Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+                                  Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+                                  Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+                                  Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+                                ],
                               ),
                               const SizedBox(height: 4),
                               const Text(
                                 "คะแนนคนขับ",
                                 style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.black54,
+                                  fontSize: 12,
+                                  color: AppTheme.textSecondary,
                                 ),
                               ),
                             ],
@@ -253,13 +311,13 @@ class DriverProfileDetailPage extends StatelessWidget {
                             child: Column(
                               children: [
                                 _buildRatingRow(5, count5, pct5),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                                 _buildRatingRow(4, count4, pct4),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                                 _buildRatingRow(3, count3, pct3),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                                 _buildRatingRow(2, count2, pct2),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                                 _buildRatingRow(1, count1, pct1),
                               ],
                             ),
@@ -273,14 +331,14 @@ class DriverProfileDetailPage extends StatelessWidget {
 
                 // 4. รีวิวที่ได้รับ (Reviews) Title
                 const Text(
-                  "รีวิวที่ได้รับ",
+                  "รีวิวและข้อเสนอแนะที่ได้รับ",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                    color: AppTheme.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
                 // 5. Reviews List or Empty State
                 if (reviewsList.isEmpty)
@@ -288,22 +346,30 @@ class DriverProfileDetailPage extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE5E5E7),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Column(
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: const [
-                            Icon(Icons.visibility_outlined, size: 20, color: Colors.black54),
-                            SizedBox(width: 8),
+                            Icon(Icons.visibility_outlined, size: 18, color: AppTheme.textSecondary),
+                            SizedBox(width: 6),
                             Text(
                               "มีเพียงคุณเท่านั้นที่เห็นหน้านี้",
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: 13,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black54,
+                                color: AppTheme.textSecondary,
                               ),
                             ),
                           ],
@@ -313,31 +379,38 @@ class DriverProfileDetailPage extends StatelessWidget {
                           "ผู้โดยสารแนะนำให้คุณปรับปรุงในเรื่องต่อไปนี้",
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.black45,
+                            color: Color(0xFF94A3B8),
                           ),
                         ),
-                        const SizedBox(height: 32),
-                        const Icon(
-                          Icons.search_rounded,
-                          size: 56,
-                          color: Colors.black54,
+                        const SizedBox(height: 28),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.rate_review_outlined,
+                            size: 44,
+                            color: Color(0xFF94A3B8),
+                          ),
                         ),
                         const SizedBox(height: 16),
                         const Text(
-                          "ยังไม่มีรายงาน",
+                          "ยังไม่มีรายงานและข้อเสนอแนะ",
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 15,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: AppTheme.textPrimary,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         const Text(
                           "เมื่อให้บริการโดยสารมากขึ้น คุณจะได้รับข้อเสนอแนะเกี่ยวกับการปรับปรุงบริการของตัวเอง",
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.black45,
+                            color: AppTheme.textSecondary,
                             height: 1.4,
                           ),
                         ),
@@ -359,8 +432,16 @@ class DriverProfileDetailPage extends StatelessWidget {
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE5E5E7),
-                        borderRadius: BorderRadius.circular(15),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.02),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,23 +451,23 @@ class DriverProfileDetailPage extends StatelessWidget {
                               Row(
                                 children: List.generate(5, (index) {
                                   return Icon(
-                                    index < rate ? Icons.star : Icons.star_border,
+                                    index < rate ? Icons.star_rounded : Icons.star_outline_rounded,
                                     color: Colors.amber,
-                                    size: 16,
+                                    size: 18,
                                   );
                                 }),
                               ),
                               const Spacer(),
                               Text(
                                 dateStr,
-                                style: const TextStyle(fontSize: 12, color: Colors.black54),
+                                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                               ),
                             ],
                           ),
                           const SizedBox(height: 8),
                           Text(
                             comment,
-                            style: const TextStyle(fontSize: 14, color: Colors.black87, fontWeight: FontWeight.w500),
+                            style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary, fontWeight: FontWeight.w500),
                           ),
                         ],
                       ),

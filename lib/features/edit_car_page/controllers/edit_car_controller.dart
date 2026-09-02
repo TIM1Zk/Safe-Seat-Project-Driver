@@ -85,10 +85,12 @@ class EditCarController extends ChangeNotifier {
 
       final response = await ApiService.put('/users/$username', data: formData);
 
-      if (response.statusCode == 200 && response.data != null) {
-        final carJson = response.data['drivercar'];
-        if (carJson != null) {
-          driverCar = DriverCar.fromJson(carJson);
+      if (response.statusCode == 200) {
+        if (response.data != null && response.data is Map) {
+          final carJson = response.data['drivercar'] ?? response.data;
+          if (carJson is Map<String, dynamic>) {
+            driverCar = DriverCar.fromJson(carJson);
+          }
         }
         isLoading = false;
         notifyListeners();
@@ -100,7 +102,16 @@ class EditCarController extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      errorMessage = "แก้ไขข้อมูลรถยนต์ไม่สำเร็จ: $e";
+      if (e is dio.DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map && data.containsKey('error')) {
+          errorMessage = "แก้ไขไม่สำเร็จ: ${data['error']}";
+        } else {
+          errorMessage = "แก้ไขข้อมูลรถยนต์ไม่สำเร็จ: ${e.response?.statusCode} ${e.response?.statusMessage}";
+        }
+      } else {
+        errorMessage = "แก้ไขข้อมูลรถยนต์ไม่สำเร็จ: $e";
+      }
       isLoading = false;
       notifyListeners();
       return false;
