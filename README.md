@@ -1,4 +1,4 @@
-# 🛡️ Safe Seat Project
+# 🛡️ Safe Seat Project (Driver Application)
 
 [![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)](https://flutter.dev)
 [![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
@@ -6,154 +6,141 @@
 [![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-A professional full-stack mobile application designed for secure wallet management and user profile interactions. 
+**Safe Seat (Driver App)** is a comprehensive full-stack mobile application platform built for designated drivers and buddy-team operations. It features real-time navigation, team buddy matching, dispatch notifications, payment processing (PromptPay QR & Cash), driver wallet management, and incident reporting.
 
-The project has recently been refactored to a strict **MVC Architecture**. The mobile app now communicates via a custom **Node.js/Express Backend API**, which handles all business logic and securely connects to **Supabase** for database operations.
-
----
-
-## ✨ Key Features
-
-- **🔐 Secure Authentication & Strict Validation:** 
-  - Login restricted to approved driver accounts with persistent session (`shared_preferences`) and direct navigation to MapPage on successful startup.
-  - Strict input validations: Mobile phone format (10-digit, numeric only, no whitespaces) and password format (8–30 characters, alphanumeric & special characters `[!#_.]`).
-- **🚗 Driver Car Management:** Premium vehicle details card on the profile page and a dedicated frosted-blue vehicle edit screen supporting real-time database updates for drivercar details (Brand, Model, Color, Plate).
-- **🤝 Synced Buddy Request & Team System:** 
-  - **Location-Aware Search & Phone Filter:** Search nearby available buddies with strict 10-digit mobile phone validation and real-time live GPS positioning.
-  - **Real-time Requests:** Send/Receive buddy requests with a 5-minute auto-expiry rule.
-  - **Notification Badge:** Instant visual indicators for new pending requests.
-  - **My Buddy Dashboard:** View current active buddy details, chat/call options, and team management (Leave Team) with instant, real-time UI state synchronization.
-  - **Robust Fkey Database Handling:** Safely handles database constraints when leaving teams by dynamically resetting `buddy_team_id` references on members before deletion.
-- **📋 User Reporting & Strict Validation:**
-  - Dedicated **Report User Page** (`report_user_page.dart`) with comprehensive client-side data validation rules (mandatory problem category selection, event detail text length 5-200 chars, character validation restricting to Thai/English/numbers, required image upload in JPG/PNG format up to 10 MB).
-  - Safety check disabling user reports for pub/nightlife establishment requests (`_isPubJob`).
-- **🗺️ Advanced Map Routing, High-Accuracy GPS & Real-time Job Sync:**
-  - **Enhanced Real-time GPS Tracking:** Continuous position stream (`Geolocator.getPositionStream`) with `LocationAccuracy.high` dynamically updating driver markers and syncing leader coordinates directly to Supabase (`buddyteam` table).
-  - **OSRM Map Router Integration:** Renders accurate, dynamic routes along actual roads using the Open Source Routing Machine (OSRM) API instead of straight lines, drawing distinct paths from driver-to-pickup (blue) and pickup-to-destination (green).
-  - **Real-time Job Syncing:** Dynamically updates map states when any teammate accepts a job. Listens to database events and syncs current job state (e.g. status changes: "ถึงจุดนัดหมาย", "กำลังเดินทาง", "เสร็จสิ้น") instantly between buddy devices via Supabase Realtime Broadcast.
-  - **Correct Destination Mapping:** Direct extraction of accurate customer pickup and drop-off coordinates from the `requestbyuser` data model, displaying precise locations on both driver/buddy devices.
-- **📊 Service Summary & Earnings Dashboard:**
-  - **🆕 Comprehensive Earnings Analytics:** A dedicated `ServiceSummaryPage` providing drivers with a full overview of their trip earnings, completed ride count, average earnings per ride, and total online minutes.
-  - **🆕 Flexible Period Filters:** Filter earnings data by Today, This Week, This Month, or All Time periods for detailed performance tracking.
-  - **🆕 Weekly Earnings Chart:** Visual bar chart displaying daily earnings breakdown (Monday–Sunday) for quick trend analysis.
-  - **🆕 Trip History List:** Scrollable list of completed trips with detailed information including pickup/destination locations, fare amount, and completion timestamp.
-- **📋 Driver Problem & Expense Reporting:**
-  - **Multi-Status Filter:** View and filter submitted reports by status: "ทั้งหมด" (All), "กำลังดำเนินการ" (In Progress), and "เสร็จสิ้น" (Completed).
-  - **Detailed Report Sheet:** Interactive modal sheets showing report details, date, status, custom category icons, and receipt images.
-  - **Team-based API Querying:** Intelligently joins and matches reports to drivers based on their current `buddy_team_id` context.
-- **👤 Profile Management & Redesign:** 
-  - Beautiful white-themed profile detail screen (`DriverProfileDetailPage`) with a custom circular pencil/edit button.
-  - Redesigned "แก้ไขข้อมูลบัญชี" (`EditProfilePage`) screen matching custom mockup layout to update full name (first name & last name), email, and phone number with strict validation.
-  - **🆕 Review & Rating Display:** Displays real-time average review ratings and a list of feedback/comments from users on the profile page.
-  - **🆕 User Reported History:** A dedicated tracking screen (`UserReportedHistoryPage`) to view and filter all submitted user-related reports by status ("ทั้งหมด", "กำลังตรวจสอบ", "ตรวจสอบแล้ว", "ไม่อนุมัติ" with red indicator color).
-- **💰 Upgraded Wallet System:** 
-  - Premium styled UI cards displaying real-time balance, custom withdrawal input flow.
-  - **🆕 Wallet Transaction History:** A dedicated `ViewWalletHistoryPage` for viewing detailed withdrawal and transaction records with status tracking.
-- **📍 Location & Team Tracking:** Live GPS stream and forced sync mechanism for seamless buddy coordination.
-- **🖼️ Image Optimization:** Dynamic JSON parsing utility for resilient profile picture loading across the app.
-- **🎨 Premium UI & Experience Enhancements:** 
-  - Beautiful white-themed search buddy cards, modern search input fields with subtle shadow borders, and redesigned buddy profile/dashboard cards for a cleaner, more interactive user experience.
-  - **🆕 Centralized Design Token System:** A new `AppTheme` class (`lib/core/theme/app_theme.dart`) providing standardized brand colors, semantic/feedback colors, trip status flow colors, and map marker colors for consistent UI across the entire application.
-- **🏗️ MVC Architecture:** Clean separation of concerns across the full stack.
-
+The project follows a strict **MVC Architecture**. The mobile client communicates via a custom **Node.js/Express Backend API**, which handles business logic and securely interfaces with **Supabase (PostgreSQL & Realtime Channels)**.
 
 ---
 
-## 📂 Project Structure
+## ✨ Key Features & System Modules
 
-### Mobile (Flutter)
+### 🔐 1. Authentication & Driver Profile
+- **Restricted Driver Login:** Secure authentication restricted to active driver accounts with persistent local session caching (`shared_preferences`).
+- **Strict Input Validation:** 
+  - Mobile phone format validation (10 numeric digits, no whitespace).
+  - Password strength validation (8–30 characters, alphanumeric with special symbols `[!#_.]`).
+- **Profile & Rating Display:** View average rating score, total review count, and passenger feedback comments.
+- **Account & Car Editing:** Update personal info (name, phone, email) and manage vehicle details (brand, model, color, license plate).
+
+### 👥 2. Buddy Team System
+- **Proximity & Phone Search:** Search available drivers by mobile number or nearby active location.
+- **Real-time Team Pairing:** Send and accept buddy pairing requests with a 5-minute auto-expiration window.
+- **Live Team Dashboard:** View active teammate profile, call/chat actions, and leave team with robust foreign-key constraint safety.
+
+### 🗺️ 3. Map Routing, Real-time GPS & Ride Dispatch
+- **High-Accuracy GPS Stream:** Continuous driver location streaming with dynamic heading updates and teammate synchronization.
+- **OSRM Dynamic Road Routing:** Turn-by-turn routing using Open Source Routing Machine (OSRM) rendering distinct paths for pickup and destination.
+- **Real-time Ride Dispatch:** Receive instant job popups from passengers and nightlife venues (Pubs) via Supabase Realtime broadcast channels.
+- **Service Workflow:** Step-by-step ride flow with status synchronization ("ถึงจุดนัดหมาย", "กำลังเดินทาง", "เสร็จสิ้น").
+
+### 💳 4. Job Completion & Payment Settlement
+- **Finish Job Verification:** Mandatory parking proof photo capture before completing rides.
+- **Split Payment & Commission Handling:**
+  - Automatic split payout between Driver and Buddy teammates (50/50).
+  - Commission deduction for Cash payments (`cash_commission_deduct`) and automated driver wallet balance updates.
+  - Dynamic PromptPay QR generation for cash/direct payment settlement.
+
+### 💰 5. Driver Wallet & Earnings Analytics
+- **Driver Wallet Dashboard:** Real-time wallet balance preview, fast withdrawal flow with bank account details.
+- **Transaction History:** Detailed ledger for earnings, withdrawals, and cash commissions.
+- **Service Summary Dashboard:** Filter earnings and completed rides by Today, This Week, This Month, or All Time, complete with weekly earnings charts.
+
+### ⚠️ 6. Reporting & Safety
+- **Report User:** Report passenger misconduct with required category, detailed description (5-200 chars), and proof images.
+- **Reported History Tracking:** Filter submitted user reports with clear status indicators (*Pending*, *Under Review*, *Approved*, *Rejected*).
+- **Driver Expense & Problem Reports:** Submit road expenses and vehicle issue claims with receipt attachments.
+
+---
+
+## 🏗️ System Architecture
+
 ```text
-lib/
-├── core/
-│   ├── network/              # API Service (Dio Client)
-│   ├── theme/                # AppTheme - Centralized design tokens & color system
-│   └── utils/                # SessionManager (Local storage), LocationHelper, ImageUtils, etc.
-├── features/
-│   ├── searchbuddy_page/     # Buddy search & Request notifications
-│   ├── Mybuddy_page/         # Active buddy details & Team management
-│   ├── Listdriverreport_page/# Driver problem & expense reporting interface
-│   ├── login_page/           # Authentication flow (with data/services layer)
-│   ├── map_page/             # Map routing, GPS tracking & Report user page
-│   ├── profile_page/         # User profile, vehicle card, driver detail & user reported history
-│   ├── service_summary/      # Earnings analytics dashboard with period filters & charts
-│   ├── view_wallet_balance/  # Dashboard for wallet balance
-│   ├── view_wallet_history/  # Wallet transaction & withdrawal history
-│   ├── withdraw_wallet_page/ # Withdrawal interface
-│   ├── edit_profile_page/    # Account profile modification interface
-│   ├── edit_car_page/        # Vehicle details modification interface
-│   └── loading_screen/       # Loader & auto-login check on startup
-└── main.dart                 # App entry point & configuration
+Safe-Seat-Project/ (Full Monorepo)
+├── Safe-Seat-Project/          # Flutter Frontend Mobile App
+│   ├── lib/
+│   │   ├── core/
+│   │   │   ├── network/        # Dio API Client
+│   │   │   ├── theme/          # AppTheme Design Tokens & Colors
+│   │   │   └── utils/          # SessionManager, LocationHelper, ImageUtils
+│   │   └── features/           # Modular Feature Modules (MVC)
+│   │       ├── login_page/
+│   │       ├── map_page/
+│   │       ├── searchbuddy_page/
+│   │       ├── Mybuddy_page/
+│   │       ├── profile_page/
+│   │       ├── edit_profile_page/
+│   │       ├── edit_car_page/
+│   │       ├── service_summary/
+│   │       ├── view_wallet_balance/
+│   │       ├── view_wallet_history/
+│   │       ├── withdraw_wallet_page/
+│   │       └── Listdriverreport_page/
+│   └── pubspec.yaml
+│
+└── safeseat_backend/           # Node.js & Express REST API
+    ├── src/
+    │   ├── config/             # Supabase client & environment configuration
+    │   ├── controllers/        # Express request handlers
+    │   ├── models/             # Database access layers (Supabase PostgreSQL)
+    │   ├── routes/             # RESTful API route definitions
+    │   └── services/           # Realtime dispatch & background services
+    └── package.json
 ```
 
-### Backend (Node.js)
-```text
-safeseat_backend/
-├── src/
-│   ├── controllers/          # buddyRequestController.js, driverReportController.js, userController.js, etc.
-│   ├── models/               # buddyRequestModel.js, driverReportModel.js, userModel.js, authModel.js
-│   ├── services/             # dispatcherService.js - Job dispatching & real-time coordination
-│   ├── routes/               # buddyRequestRoutes.js, driverReportRoutes.js, userRoutes.js, etc.
-│   └── index.js              # Express app entry point
-```
+---
+
+## 📋 Use Case Mapping
+
+| Use Case | Description | Primary Controller | Primary Model / Tables |
+| :--- | :--- | :--- | :--- |
+| **Login Driver** | Authenticate driver and create session | `AuthController` | `AuthModel` (`driver`) |
+| **View / Edit Profile** | Profile stats, reviews, and updates | `UserController` | `UserModel` (`driver`, `review`) |
+| **Edit Car** | Update vehicle specifications | `VehicleController` | `UserModel` (`driver_car`) |
+| **Search & Buddy Pairing**| Search partners, send/accept buddy requests | `BuddyRequestController` | `BuddyRequestModel` (`buddyteam`, `driver`) |
+| **Accept & Manage Job** | Real-time job alert, routing, and ride flow | `JobController` / `BuddyController` | `BuddyRequestModel` (`requestbyuser`, `requestbypub`) |
+| **Finish Job & Payment**| Parking proof, PromptPay QR, earnings split | `JobController` / `BuddyController` | `BuddyRequestModel`, `WalletModel` |
+| **Driver Wallet & Withdraw** | View balance, request bank withdrawal | `WalletController` | `WalletModel` (`driver`, `driverwallettransaction`) |
+| **Service Summary** | Earnings analytics & ride history | `WalletController` | `WalletModel`, `BuddyRequestModel` |
+| **Report User & History** | Submit user report and track report status | `UserReportController` | `UserReportModel` (`userreport`) |
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) (v3.10.1 or higher)
-- [Node.js](https://nodejs.org/) (v16 or higher)
-- A Supabase account and project.
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- Supabase Project with configured schema
 
-### Installation & Setup
+### 1. Backend Setup
+```bash
+cd safeseat_backend
+npm install
+npm run dev
+# Server will start on http://localhost:3000
+```
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/TIM1Zk/Safe-Seat-Project.git
-   cd Safe-Seat-Project
-   ```
+### 2. Frontend Setup
+```bash
+cd Safe-Seat-Project
+flutter pub get
+flutter run
+```
 
-2. **Backend Setup:**
-   ```bash
-   cd safeseat_backend
-   npm install
-   ```
-   *Create a `.env` file in the `safeseat_backend/` directory with your Supabase credentials (see `.env.example` or code for keys).*
-
-3. **Run the Backend:**
-   ```bash
-   npm run dev
-   ```
-   *(Server runs on `http://localhost:3000`)*
-
-4. **Frontend Setup:**
-   ```bash
-   # Open a new terminal in the root Safe-Seat-Project directory
-   flutter pub get
-   ```
-   *Note: API base URL is configured in `lib/main.dart` (Default: `http://10.0.2.2:3000/api` for Android emulator).*
-
-5. **Run the Application:**
-   ```bash
-   flutter run
-   ```
+*Note: Base URL is configured in `lib/main.dart` (`http://10.0.2.2:3000/api` for Android Emulator or your local LAN IP for physical testing).*
 
 ---
 
-## 🛠️ Built With
+## 🛠️ Tech Stack
 
-* **Frontend:** [Flutter](https://flutter.dev/), [Dio](https://pub.dev/packages/dio), [Supabase Flutter](https://pub.dev/packages/supabase_flutter), [Flutter Map](https://pub.dev/packages/flutter_map)
-* **Backend:** [Node.js](https://nodejs.org/), [Express.js](https://expressjs.com/)
-* **Database & Auth:** [Supabase](https://supabase.io/) (PostgreSQL)
-* **Maps & Routing:** [OSRM](http://project-osrm.org/) (Open Source Routing Machine)
+* **Frontend:** Flutter, Dart, Dio, Flutter Map, Geolocator, Shared Preferences
+* **Backend:** Node.js, Express.js, Supabase JS SDK
+* **Database & Realtime:** Supabase (PostgreSQL, Realtime Broadcast)
+* **Routing:** OSRM (Open Source Routing Machine)
 
 ---
 
 ## 📄 License
-
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
 
 *Developed with ❤️ by **TIM1Zk_***
