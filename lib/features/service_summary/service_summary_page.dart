@@ -13,11 +13,12 @@ class ServiceSummaryPage extends StatefulWidget {
   State<ServiceSummaryPage> createState() => _ServiceSummaryPageState();
 }
 
-enum FilterPeriod { today, week, month, all }
+enum FilterPeriod { today, week, month, custom, all }
 
 class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
   bool _isLoading = true;
   FilterPeriod _selectedPeriod = FilterPeriod.today;
+  DateTimeRange? _selectedDateRange;
 
   double _totalEarnings = 0.0;
   int _completedRidesCount = 0;
@@ -34,53 +35,138 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
     _loadEarningData();
   }
 
+  Future<void> _pickDateRange() async {
+    final now = DateTime.now();
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year + 1),
+      initialDateRange: _selectedDateRange ??
+          DateTimeRange(
+            start: DateTime(now.year, now.month, now.day),
+            end: DateTime(now.year, now.month, now.day),
+          ),
+      helpText: 'เลือกช่วงวันที่',
+      cancelText: 'ยกเลิก',
+      confirmText: 'ตกลง',
+      saveText: 'เลือก',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF2340A7),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF1E293B),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDateRange = picked;
+        _selectedPeriod = FilterPeriod.custom;
+      });
+      _applyFilter();
+    }
+  }
+
   Future<void> _loadEarningData() async {
     setState(() => _isLoading = true);
     try {
       final supabase = Supabase.instance.client;
 
-      // 1. ดึงทีมบัดดี้ของคนขับคนนี้
+      // 1. ดึงทีมบัดดี้ทั้งหมดของคนขับคนนี้ (ทั้งที่เป็น Leader, Follower หรืออยู่ในสมาชิกทีม)
       final teamRes = await supabase
           .from('buddyteam')
           .select('buddyteamid')
-          .or('leaderid.ilike.${widget.username},followerid.ilike.${widget.username}');
+          .or('leaderid.ilike.%${widget.username}%,followerid.ilike.%${widget.username}%');
 
-      final teamIds = (teamRes as List).map((t) => t['buddyteamid'] as int).toList();
+      final Set<int> teamIdSet = {};
+      if (teamRes is List) {
+        for (var t in teamRes) {
+          if (t['buddyteamid'] != null) {
+            final id = int.tryParse(t['buddyteamid'].toString());
+            if (id != null) teamIdSet.add(id);
+          }
+        }
+      }
 
+      // ดึงเพิ่มจาก buddyteam_member เผื่อไว้
+      try {
+        final memberRes = await supabase
+            .from('buddyteam_member')
+            .select('buddyteamid')
+            .ilike('username', '%${widget.username}%');
+        if (memberRes is List) {
+          for (var m in memberRes) {
+            if (m['buddyteamid'] != null) {
+              final id = int.tryParse(m['buddyteamid'].toString());
+              if (id != null) teamIdSet.add(id);
+            }
+          }
+        }
+      } catch (_) {}
+
+      final teamIds = teamIdSet.toList();
       List<dynamic> allCompletedReqs = [];
+
+      // Helper ตรวจสอบว่างานเสร็จสิ้นหรือไม่ (รองรับทุกตัวพิมพ์ / ภาษาไทย / ภาษาอังกฤษ)
+      bool isCompletedStatus(dynamic status) {
+        if (status == null) return false;
+        final s = status.toString().trim().toLowerCase();
+        return s == 'completed' ||
+            s == 'เสร็จสิ้น' ||
+            s == 'finish' ||
+            s == 'finished' ||
+            s == 'done' ||
+            s == 'success' ||
+            s.contains('เสร็จ');
+      }
 
       if (teamIds.isNotEmpty) {
         // 2. ดึงงานจาก requestbyuser
-        final userReqs = await supabase
-            .from('requestbyuser')
-            .select('*')
-            .inFilter('buddy_team_id', teamIds)
-            .or('requeststatus.eq.completed,requeststatus.eq.เสร็จสิ้น,requeststatus.eq.Finish');
+        try {
+          final userReqs = await supabase
+              .from('requestbyuser')
+              .select('*')
+              .inFilter('buddy_team_id', teamIds);
+          for (var req in (userReqs as List)) {
+            if (isCompletedStatus(req['requeststatus'])) {
+              req['_source'] = 'user';
+              allCompletedReqs.add(req);
+            }
+          }
+        } catch (e) {
+          debugPrint("Error fetching requestbyuser: $e");
+        }
 
         // 3. ดึงงานจาก requestbypub
-        final pubReqs = await supabase
-            .from('requestbypub')
-            .select('*')
-            .inFilter('buddy_team_id', teamIds)
-            .or('requeststatus.eq.completed,requeststatus.eq.เสร็จสิ้น,requeststatus.eq.Finish');
-
-        // Tag source ให้แต่ละ request เพื่อแยกแยะว่ามาจากตารางไหน
-        for (var req in userReqs) { req['_source'] = 'user'; }
-        for (var req in pubReqs) { req['_source'] = 'pub'; }
-
-        allCompletedReqs = [...userReqs, ...pubReqs];
+        try {
+          final pubReqs = await supabase
+              .from('requestbypub')
+              .select('*')
+              .inFilter('buddy_team_id', teamIds);
+          for (var req in (pubReqs as List)) {
+            if (isCompletedStatus(req['requeststatus'])) {
+              req['_source'] = 'pub';
+              allCompletedReqs.add(req);
+            }
+          }
+        } catch (e) {
+          debugPrint("Error fetching requestbypub: $e");
+        }
       }
 
       DateTime parseTripDate(dynamic req) {
         final raw = req['created_at'] ?? req['reqdatetime'] ?? req['reqdate'] ?? req['date'];
         if (raw == null) return DateTime.now();
         String str = raw.toString().trim();
-        // If string does not end with Z or timezone offset, assume UTC from Postgres
-        if (!str.endsWith('Z') && !str.contains('+') && !RegExp(r'-\d{2}:\d{2}$').hasMatch(str)) {
-          str += 'Z';
-        }
         try {
-          return DateTime.parse(str).toLocal();
+          final dt = DateTime.parse(str);
+          return dt.isUtc ? dt.toLocal() : dt;
         } catch (_) {
           return DateTime.now();
         }
@@ -187,6 +273,13 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
         }
       } else if (_selectedPeriod == FilterPeriod.month) {
         if (tripDate.isAfter(monthStart) || tripDate.isAtSameMomentAs(monthStart)) {
+          filtered.add(trip);
+        }
+      } else if (_selectedPeriod == FilterPeriod.custom && _selectedDateRange != null) {
+        final start = DateTime(_selectedDateRange!.start.year, _selectedDateRange!.start.month, _selectedDateRange!.start.day);
+        final end = DateTime(_selectedDateRange!.end.year, _selectedDateRange!.end.month, _selectedDateRange!.end.day, 23, 59, 59, 999);
+        if ((tripDate.isAfter(start) || tripDate.isAtSameMomentAs(start)) &&
+            (tripDate.isBefore(end) || tripDate.isAtSameMomentAs(end))) {
           filtered.add(trip);
         }
       } else {
@@ -399,20 +492,107 @@ class _ServiceSummaryPageState extends State<ServiceSummaryPage> {
   }
 
   Widget _buildFilterSelector() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F0F2),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          _buildFilterChip("วันนี้", FilterPeriod.today),
-          _buildFilterChip("สัปดาห์นี้", FilterPeriod.week),
-          _buildFilterChip("เดือนนี้", FilterPeriod.month),
-          _buildFilterChip("ทั้งหมด", FilterPeriod.all),
+    final DateFormat dateFmt = DateFormat('dd/MM/yy');
+    final String customText = _selectedDateRange != null
+        ? "${dateFmt.format(_selectedDateRange!.start)} - ${dateFmt.format(_selectedDateRange!.end)}"
+        : "เลือกวัน";
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0F0F2),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              _buildFilterChip("วันนี้", FilterPeriod.today),
+              _buildFilterChip("สัปดาห์นี้", FilterPeriod.week),
+              _buildFilterChip("เดือนนี้", FilterPeriod.month),
+              _buildFilterChip("ทั้งหมด", FilterPeriod.all),
+              const SizedBox(width: 4),
+              // Calendar picker button
+              GestureDetector(
+                onTap: _pickDateRange,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: _selectedPeriod == FilterPeriod.custom
+                        ? const Color(0xFF2340A7)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.calendar_month_rounded,
+                        size: 16,
+                        color: _selectedPeriod == FilterPeriod.custom
+                            ? Colors.white
+                            : const Color(0xFF64748B),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        "ปฏิทิน",
+                        style: TextStyle(
+                          color: _selectedPeriod == FilterPeriod.custom
+                              ? Colors.white
+                              : const Color(0xFF64748B),
+                          fontSize: 12,
+                          fontWeight: _selectedPeriod == FilterPeriod.custom
+                              ? FontWeight.bold
+                              : FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (_selectedPeriod == FilterPeriod.custom && _selectedDateRange != null) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEEF2FF),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFC7D2FE)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.date_range, size: 14, color: Color(0xFF2340A7)),
+                const SizedBox(width: 6),
+                Text(
+                  "ช่วงวันที่: $customText",
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2340A7),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: _pickDateRange,
+                  child: const Text(
+                    "(เปลี่ยน)",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF4F46E5),
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
-      ),
+      ],
     );
   }
 

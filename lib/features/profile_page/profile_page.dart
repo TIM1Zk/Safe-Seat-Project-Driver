@@ -569,41 +569,44 @@ class ProfilePage extends StatelessWidget {
                           ),
                           const Divider(height: 1, color: Color(0xFFE2E8F0)),
                           // Bottom section (Academy & Blog)
-                          ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
-                            leading: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF059669).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(10),
+                          Material(
+                            color: Colors.transparent,
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
+                              leading: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF059669).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.school_rounded,
+                                  color: Color(0xFF059669),
+                                  size: 22,
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.school_rounded,
-                                color: Color(0xFF059669),
-                                size: 22,
+                              title: const Text(
+                                "SafeSeat Academy",
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
                               ),
-                            ),
-                            title: const Text(
-                              "SafeSeat Academy",
-                              style: TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
+                              subtitle: const Text(
+                                "แหล่งรวมบทเรียนและเคล็ดลับการขับขี่",
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 12,
+                                ),
                               ),
-                            ),
-                            subtitle: const Text(
-                              "แหล่งรวมบทเรียนและเคล็ดลับการขับขี่",
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 12,
+                              trailing: const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                color: Color(0xFF94A3B8),
+                                size: 14,
                               ),
+                              onTap: () {},
                             ),
-                            trailing: const Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              color: Color(0xFF94A3B8),
-                              size: 14,
-                            ),
-                            onTap: () {},
                           ),
                           const Divider(
                             color: Color(0xFFF1F5F9),
@@ -611,41 +614,44 @@ class ProfilePage extends StatelessWidget {
                             indent: 18,
                             endIndent: 18,
                           ),
-                          ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
-                            leading: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF2563EB).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(10),
+                          Material(
+                            color: Colors.transparent,
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
+                              leading: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2563EB).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.article_rounded,
+                                  color: Color(0xFF2563EB),
+                                  size: 22,
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.article_rounded,
-                                color: Color(0xFF2563EB),
-                                size: 22,
+                              title: const Text(
+                                "Driver Blog & News",
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
                               ),
-                            ),
-                            title: const Text(
-                              "Driver Blog & News",
-                              style: TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
+                              subtitle: const Text(
+                                "บทความและข่าวสารสำหรับพาร์ทเนอร์คนขับ",
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 12,
+                                ),
                               ),
-                            ),
-                            subtitle: const Text(
-                              "บทความและข่าวสารสำหรับพาร์ทเนอร์คนขับ",
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 12,
+                              trailing: const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                color: Color(0xFF94A3B8),
+                                size: 14,
                               ),
+                              onTap: () {},
                             ),
-                            trailing: const Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              color: Color(0xFF94A3B8),
-                              size: 14,
-                            ),
-                            onTap: () {},
                           ),
                         ],
                       ),

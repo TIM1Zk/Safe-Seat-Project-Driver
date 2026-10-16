@@ -253,11 +253,8 @@ class _WalletHistoryPageState extends State<WalletHistoryPage> {
   Widget _buildTransactionCard(Map<String, dynamic> tx) {
     DateTime createdAt;
     try {
-      String raw = tx['created_at']?.toString().trim() ?? '';
-      if (!raw.endsWith('Z') && !raw.contains('+') && !RegExp(r'-\d{2}:\d{2}$').hasMatch(raw)) {
-        raw += 'Z';
-      }
-      createdAt = DateTime.parse(raw).toLocal();
+      final dt = DateTime.parse(tx['created_at']?.toString().trim() ?? '');
+      createdAt = dt.isUtc ? dt.toLocal() : dt;
     } catch (_) {
       createdAt = DateTime.now();
     }

@@ -63,9 +63,9 @@ class _ListDriverReportPageState extends State<ListDriverReportPage> {
     final recentReports = _reports.where((r) {
       if (r['reportdate'] == null) return true;
       try {
-        final rawStr = r['reportdate'].toString();
-        final isoStr = (!rawStr.endsWith('Z') && !rawStr.contains('+')) ? '${rawStr}Z' : rawStr;
-        final parsedDate = DateTime.parse(isoStr).toLocal();
+        final rawStr = r['reportdate'].toString().trim();
+        final dt = DateTime.parse(rawStr);
+        final parsedDate = dt.isUtc ? dt.toLocal() : dt;
         return parsedDate.isAfter(oneMonthAgo) || parsedDate.isAtSameMomentAs(oneMonthAgo);
       } catch (e) {
         return true;
@@ -333,9 +333,9 @@ class _ListDriverReportPageState extends State<ListDriverReportPage> {
     String formattedDate = "ไม่ระบุวันที่";
     if (report['reportdate'] != null) {
       try {
-        final rawStr = report['reportdate'].toString();
-        final isoStr = (!rawStr.endsWith('Z') && !rawStr.contains('+')) ? '${rawStr}Z' : rawStr;
-        final DateTime parsed = DateTime.parse(isoStr).toLocal();
+        final rawStr = report['reportdate'].toString().trim();
+        final dt = DateTime.parse(rawStr);
+        final DateTime parsed = dt.isUtc ? dt.toLocal() : dt;
         formattedDate = DateFormat('dd MMM yyyy, HH:mm น.').format(parsed);
       } catch (e) {
         formattedDate = report['reportdate'].toString();
@@ -500,9 +500,9 @@ class _ListDriverReportPageState extends State<ListDriverReportPage> {
     String formattedDate = "ไม่ระบุวันที่";
     if (report['reportdate'] != null) {
       try {
-        final rawStr = report['reportdate'].toString();
-        final isoStr = (!rawStr.endsWith('Z') && !rawStr.contains('+')) ? '${rawStr}Z' : rawStr;
-        final DateTime parsed = DateTime.parse(isoStr).toLocal();
+        final rawStr = report['reportdate'].toString().trim();
+        final dt = DateTime.parse(rawStr);
+        final DateTime parsed = dt.isUtc ? dt.toLocal() : dt;
         formattedDate = DateFormat('dd MMMM yyyy, HH:mm น.').format(parsed);
       } catch (e) {
         formattedDate = report['reportdate'].toString();

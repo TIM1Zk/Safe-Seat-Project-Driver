@@ -42,8 +42,9 @@ The project follows a strict **MVC Architecture**. The mobile client communicate
 
 ### 💰 5. Driver Wallet & Earnings Analytics
 - **Driver Wallet Dashboard:** Real-time wallet balance preview, fast withdrawal flow with bank account details.
-- **Transaction History:** Detailed ledger for earnings, withdrawals, and cash commissions.
-- **Service Summary Dashboard:** Filter earnings and completed rides by Today, This Week, This Month, or All Time, complete with weekly earnings charts.
+- **Transaction History:** Detailed ledger for earnings, withdrawals, and cash commissions with accurate timezone parsing.
+- **Service Summary Dashboard:** Filter earnings and completed rides by Today, This Week, This Month, All Time, or **Custom Date Range (interactive calendar picker)**, complete with weekly earnings charts.
+- **Comprehensive Ride Aggregation:** Aggregates completed trips from both passenger requests (`requestbyuser`) and nightlife venue dispatches (`requestbypub`).
 
 ### ⚠️ 6. Reporting & Safety
 - **Report User:** Report passenger misconduct with required category, detailed description (5-200 chars), and proof images.
@@ -57,24 +58,27 @@ The project follows a strict **MVC Architecture**. The mobile client communicate
 ```text
 Safe-Seat-Project/ (Full Monorepo)
 ├── Safe-Seat-Project/          # Flutter Frontend Mobile App
+│   ├── assets/                 # Brand Assets & Logos
+│   │   └── images/logo.png
 │   ├── lib/
 │   │   ├── core/
 │   │   │   ├── network/        # Dio API Client
 │   │   │   ├── theme/          # AppTheme Design Tokens & Colors
 │   │   │   └── utils/          # SessionManager, LocationHelper, ImageUtils
 │   │   └── features/           # Modular Feature Modules (MVC)
-│   │       ├── login_page/
-│   │       ├── map_page/
+│   │       ├── login_page/     # Driver Authentication & Brand Assets
+│   │       ├── map_page/       # Live GPS, Ride Dispatch & Job Execution
 │   │       ├── searchbuddy_page/
 │   │       ├── Mybuddy_page/
-│   │       ├── profile_page/
+│   │       ├── profile_page/   # Driver Profile, Ratings, History & Training
 │   │       ├── edit_profile_page/
 │   │       ├── edit_car_page/
-│   │       ├── service_summary/
+│   │       ├── service_summary/ # Earnings Analytics & Custom Date Filtering
 │   │       ├── view_wallet_balance/
 │   │       ├── view_wallet_history/
 │   │       ├── withdraw_wallet_page/
 │   │       └── Listdriverreport_page/
+│   ├── screens_and_usecases.md # Detailed SRS Use Case & Screen Mapping Document
 │   └── pubspec.yaml
 │
 └── safeseat_backend/           # Node.js & Express REST API

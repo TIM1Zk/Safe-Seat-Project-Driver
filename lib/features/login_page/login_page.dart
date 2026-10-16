@@ -1,6 +1,5 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:mobile_project/features/profile_page/profile_page.dart';
 import 'package:mobile_project/core/utils/session_manager.dart';
 import 'package:mobile_project/features/map_page/map_page.dart';
 import 'data/services/auth_service.dart';
@@ -215,7 +214,9 @@ class _LoginPageState extends State<LoginPage> {
                       child: Column(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(20),
+                            width: 120,
+                            height: 120,
+                            padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               shape: BoxShape.circle,
@@ -225,19 +226,21 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF2340A7).withOpacity(0.12),
-                                  blurRadius: 20,
+                                  color: const Color(0xFF2340A7).withOpacity(0.15),
+                                  blurRadius: 24,
                                   spreadRadius: 2,
+                                  offset: const Offset(0, 8),
                                 ),
                               ],
                             ),
-                            child: const Icon(
-                              Icons.drive_eta_rounded,
-                              size: 70,
-                              color: Color(0xFF2340A7),
+                            child: ClipOval(
+                              child: Image.asset(
+                                'assets/images/logo.png',
+                                fit: BoxFit.contain,
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 30),
+                          const SizedBox(height: 24),
                           const Text(
                             "Safe Seat Driver",
                             style: TextStyle(
