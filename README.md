@@ -247,13 +247,12 @@ cp .env.example .env
 เนื้อหาภายในไฟล์ `.env`:
 ```env
 # Supabase Configuration
-SUPABASE_URL=https://qbionbozkvlekpakvstg.supabase.co
-SUPABASE_ANON_KEY=sb_publishable_PoMKHC0nz4vb9OmOxZsbkw_aU_K2xts
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-supabase-anon-key
 
 # Backend API Configuration (http://10.0.2.2:3000/api สำหรับ Emulator หรือ IP วง LAN สำหรับเครื่องจริง)
 API_BASE_URL=http://10.0.2.2:3000/api
 ```
-*(ระบบมี Fallback เริ่มต้นอัตโนมัติใน `lib/core/constants/app_env.dart` ทำให้รันแอปได้ทันทีโดยไม่พัง)*
 
 ### 3. รันแอปพลิเคชัน
 ```bash
