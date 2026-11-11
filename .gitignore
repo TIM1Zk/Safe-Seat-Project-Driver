@@ -44,7 +44,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Local Secrets
+# Local Secrets & Environment Variables
 secrets.json
+.env
+.env.*
+!.env.example
 .agents/
 skills-lock.json

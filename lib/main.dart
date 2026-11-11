@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:mobile_project/core/constants/app_env.dart';
 import 'package:mobile_project/features/login_page/login_page.dart';
 import 'package:mobile_project/features/loading_screen/loading_screen.dart';
 import 'package:mobile_project/core/network/api_service.dart';
@@ -9,14 +11,21 @@ Future<void> main() async {
   // 1. ต้องมีบรรทัดนี้เพื่อให้เรียกใช้ Plugin ต่างๆ ได้ถูกต้อง
   WidgetsFlutterBinding.ensureInitialized();
 
+  // โหลดค่าตัวแปรสภาพแวดล้อมจากไฟล์ .env (หากไม่มีจะใช้ค่า fallback อัตโนมัติใน AppEnv)
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint("[AppEnv] Note: .env file not loaded, using default fallback: $e");
+  }
+
   // 2. Initialize Supabase
   await Supabase.initialize(
-    url: 'https://qbionbozkvlekpakvstg.supabase.co',
-    anonKey: 'sb_publishable_PoMKHC0nz4vb9OmOxZsbkw_aU_K2xts',
+    url: AppEnv.supabaseUrl,
+    anonKey: AppEnv.supabaseAnonKey,
   );
 
   // 3. Initialize API Service configuration
-  ApiService.init(baseUrl: 'http://10.0.2.2:3000/api');
+  ApiService.init(baseUrl: AppEnv.apiBaseUrl);
 
   runApp(const MyApp());
 }
